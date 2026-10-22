@@ -7,6 +7,7 @@ All UI implementation, simulator views, and C firmware code MUST strictly confor
 - **W3C DTCG JSON Tokens:** `assets/nordic/tokens.json`
 - **70 Vector Icons (`24×24` grid, `1.75px` stroke, round caps):** `assets/nordic/fjall-icons.svg`
 - **Hardware & System Architecture:** `docs/DIAL_OS_SYSTEM_REQUIREMENTS.md`
+- **Milestone & Release Roadmap (`v0.1.0` → `v1.0.0`):** `docs/ROADMAP.md`
 
 ### Strict Token Discipline
 - **Never hardcode raw hex colours, pixel sizes, or durations** in screen code. Always reference `dial_palette_t` (`DIAL_PALETTE_NIGHT` / `DIAL_PALETTE_DAY`) and the `DIAL_*` macros in `include/dial_theme.h` and `include/dial_config.h`.

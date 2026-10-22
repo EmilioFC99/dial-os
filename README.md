@@ -80,7 +80,8 @@ dial-os/
 │   ├── dial_ipc.h                         # POSIX /player & /ui message queue & BT cache structs
 │   └── dial_theme.h                       # Fjäll Night/Day palettes & layout tokens
 └── docs/
-    └── DIAL_OS_SYSTEM_REQUIREMENTS.md     # Hardware HAL, CS43131 DAC, GPIO & IPC blueprint
+    ├── DIAL_OS_SYSTEM_REQUIREMENTS.md     # Hardware HAL, CS43131 DAC, GPIO & IPC blueprint
+    └── ROADMAP.md                         # Milestone & release roadmap (v0.1.0 -> v1.0.0)
 ```
 
 ---
