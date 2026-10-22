@@ -769,10 +769,10 @@ void dial_draw_hint(dial_fb_t *fb,
     int iw = icon_name ? 16 : 0;
     int start_x = DIAL_CENTER_X - (tw + iw) / 2;
     if (icon_name) {
-        dial_draw_icon_by_name(fb, icon_name, (float)start_x, 326.0f, 12.0f, 2.0f, fg, 210);
+        dial_draw_icon_by_name(fb, icon_name, (float)start_x, 317.0f, 12.0f, 2.0f, fg, 210);
         start_x += 16;
     }
-    dial_draw_text(fb, text, start_x, 327, 10, fg, 210, false);
+    dial_draw_text(fb, text, start_x, 318, 10, fg, 210, false);
 }
 
 void dial_draw_horizon(dial_fb_t *fb, const dial_palette_t *pal) {
