@@ -172,12 +172,129 @@ static void test_interactive_lock_to_home_to_library(void) {
     assert(strcmp(app->screen_id, "LIB-01") == 0);
 }
 
+/* 5. Test LIB-01 -> LIB-02 Cover Arc (Both Horizontal Swipe & Right-Rim Scroll) -> LIB-03 Track Select */
+static void test_interactive_lib02_cover_arc_swipe_and_rim_scroll(void) {
+    dial_fb_t *fb = dial_hal_get_framebuffer();
+    dial_app_t *app = dial_app_get_state();
+    dial_app_init(app, "LIB-01", DIAL_MODE_NIGHT);
+
+    uint32_t ts = 12000u;
+    /* Rotate rim 16 deg clockwise on LIB-01 -> steps list_focus_idx from 2 (Artists) to 3 (Albums) */
+    float x = 0.0f, y = 0.0f;
+    dial_polar_to_xy(40.0f, 166.0f, &x, &y);
+    dial_touch_event_t r0 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts };
+    dial_app_on_touch(app, &r0);
+    dial_polar_to_xy(48.0f, 166.0f, &x, &y);
+    dial_touch_event_t r1 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts + 80u };
+    dial_app_on_touch(app, &r1);
+    dial_polar_to_xy(56.0f, 166.0f, &x, &y);
+    dial_touch_event_t r2 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts + 160u };
+    dial_app_on_touch(app, &r2);
+    dial_touch_event_t r3 = { .x = x, .y = y, .pressed = false, .timestamp_ms = ts + 180u };
+    dial_app_on_touch(app, &r3);
+    ts += 200u;
+    assert(app->list_focus_idx == 3);
+
+    /* Tap center row -> opens LIB-02 (Albums Cover Arc) */
+    sim_tap(app, 180.0f, 190.0f, &ts);
+    assert(strcmp(app->screen_id, "LIB-02") == 0);
+    assert(app->album_focus_idx == 0);
+
+    dial_app_render(app, fb, ts);
+    uint32_t cover0_px = fb->pixels[138 * DIAL_SCREEN_WIDTH + 180];
+
+    /* Locked Rule #6a: Horizontal swipe left across LIB-02 steps 1 album (0 -> 1) */
+    dial_touch_event_t sw0 = { .x = 220.0f, .y = 140.0f, .pressed = true,  .timestamp_ms = ts };
+    dial_touch_event_t sw1 = { .x = 120.0f, .y = 140.0f, .pressed = true,  .timestamp_ms = ts + 40u };
+    dial_touch_event_t sw2 = { .x = 120.0f, .y = 140.0f, .pressed = false, .timestamp_ms = ts + 60u };
+    dial_app_on_touch(app, &sw0);
+    dial_app_on_touch(app, &sw1);
+    dial_app_on_touch(app, &sw2);
+    ts += 80u;
+    assert(app->album_focus_idx == 1);
+
+    dial_app_render(app, fb, ts);
+    uint32_t cover1_px = fb->pixels[138 * DIAL_SCREEN_WIDTH + 180];
+    assert(cover1_px != cover0_px);
+
+    /* Locked Rule #6b: Right-side rim scroll on LIB-02 also scrubs albums (1 -> 2) */
+    dial_polar_to_xy(60.0f, 166.0f, &x, &y);
+    dial_touch_event_t rm0 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts };
+    dial_app_on_touch(app, &rm0);
+    dial_polar_to_xy(68.0f, 166.0f, &x, &y);
+    dial_touch_event_t rm1 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts + 80u };
+    dial_app_on_touch(app, &rm1);
+    dial_polar_to_xy(76.0f, 166.0f, &x, &y);
+    dial_touch_event_t rm2 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts + 160u };
+    dial_app_on_touch(app, &rm2);
+    dial_touch_event_t rm3 = { .x = x, .y = y, .pressed = false, .timestamp_ms = ts + 180u };
+    dial_app_on_touch(app, &rm3);
+    ts += 200u;
+    assert(app->album_focus_idx == 2);
+
+    dial_app_render(app, fb, ts);
+    uint32_t cover2_px = fb->pixels[138 * DIAL_SCREEN_WIDTH + 180];
+    assert(cover2_px != cover1_px);
+
+    /* Tap center cover (180, 138) -> opens LIB-03 Track List */
+    sim_tap(app, 180.0f, 138.0f, &ts);
+    assert(strcmp(app->screen_id, "LIB-03") == 0);
+
+    /* Tap track row in LIB-03 -> starts playback and opens NP-01 */
+    sim_tap(app, 180.0f, 180.0f, &ts);
+    assert(strcmp(app->screen_id, "NP-01") == 0);
+}
+
+/* 6. Test FIL-01 Long-Press (450ms) -> FIL-02 Action Sheet -> FIL-03 600ms Hold-to-Delete */
+static void test_interactive_fil01_long_press_and_600ms_delete(void) {
+    dial_fb_t *fb = dial_hal_get_framebuffer();
+    dial_app_t *app = dial_app_get_state();
+    dial_app_init(app, "FIL-01", DIAL_MODE_NIGHT);
+
+    uint32_t ts = 16000u;
+    /* Locked Rule #7: Long-press (450ms) on file row in FIL-01 opens FIL-02 Action Sheet */
+    dial_touch_event_t lp_down = { .x = 180.0f, .y = 190.0f, .pressed = true, .timestamp_ms = ts };
+    dial_app_on_touch(app, &lp_down);
+    dial_app_tick(app, ts + 460u);
+    dial_touch_event_t lp_up = { .x = 180.0f, .y = 190.0f, .pressed = false, .timestamp_ms = ts + 480u };
+    dial_app_on_touch(app, &lp_up);
+    ts += 500u;
+    assert(strcmp(app->screen_id, "FIL-02") == 0);
+
+    /* Tap Delete puck (cx=254, cy=246) on FIL-02 -> opens FIL-03 Delete Confirm */
+    sim_tap(app, 254.0f, 246.0f, &ts);
+    assert(strcmp(app->screen_id, "FIL-03") == 0);
+    assert(app->file_deleted == false);
+
+    /* Short 200ms press on "Hold to delete" (234, 236) MUST NOT delete */
+    dial_touch_event_t sh_down = { .x = 234.0f, .y = 236.0f, .pressed = true, .timestamp_ms = ts };
+    dial_app_on_touch(app, &sh_down);
+    dial_app_tick(app, ts + 200u);
+    dial_touch_event_t sh_up = { .x = 234.0f, .y = 236.0f, .pressed = false, .timestamp_ms = ts + 210u };
+    dial_app_on_touch(app, &sh_up);
+    ts += 250u;
+    assert(app->file_deleted == false);
+    assert(strcmp(app->screen_id, "FIL-03") == 0);
+
+    /* Full 600ms hold on "Hold to delete" (234, 236) confirms deletion and returns to FIL-01 */
+    dial_touch_event_t del_down = { .x = 234.0f, .y = 236.0f, .pressed = true, .timestamp_ms = ts };
+    dial_app_on_touch(app, &del_down);
+    dial_app_tick(app, ts + 300u);
+    assert(fabsf(app->delete_hold_progress - 0.5f) < 0.05f);
+    dial_app_render(app, fb, ts + 300u);
+    dial_app_tick(app, ts + 610u);
+    assert(app->file_deleted == true);
+    assert(strcmp(app->screen_id, "FIL-01") == 0);
+}
+
 int main(void) {
     dial_hal_init(true);
     test_interactive_np01_seek_and_render();
     test_interactive_np02_quick_actions_flow();
     test_interactive_control_center_and_lock_shield();
     test_interactive_lock_to_home_to_library();
+    test_interactive_lib02_cover_arc_swipe_and_rim_scroll();
+    test_interactive_fil01_long_press_and_600ms_delete();
     dial_hal_shutdown();
     printf("[PASS] test_ui_interaction: all live interactive UI flows & framebuffer mutations verified.\n");
     return 0;
