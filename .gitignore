@@ -1,0 +1,24 @@
+# OS & Editor files
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Build & Firmware Artifacts
+build/
+dist/
+*.o
+*.a
+*.so
+*.dylib
+*.dSYM/
+*.fw
+*.img
+*.bin
+
+# Test & Coverage Outputs
+coverage/
+*.gcda
+*.gcno
+*.gcov
