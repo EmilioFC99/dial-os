@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fjäll — DialOS Design Language · FiiO Snowsky DISC</title>
+<!--
+  FJÄLL DESIGN LANGUAGE — single source of truth for the DialOS visual system.
+  Everything on this page (palette swatches, every screen mock, the code export)
+  is rendered from the TOKENS object in the <script> below. Change a token once,
+  every slide updates. That is the contract engineering builds against.
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  :root {
+    --font: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+    --ease-settle: cubic-bezier(.2,.8,.2,1);
+    --ease-glide: cubic-bezier(.4,0,.2,1);
+  }
+  body {
+    font-family: var(--font);
+    background: var(--page);
+    color: var(--t1);
+    -webkit-font-smoothing: antialiased;
+    transition: background .32s var(--ease-glide), color .32s var(--ease-glide);
+  }
+
+  /* ───────────────────────── Deck chrome ───────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 32px;
+    background: color-mix(in srgb, var(--page) 82%, transparent);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: .02em; }
+  .brand svg { color: var(--moss); }
+  .brand small { color: var(--t3); font-weight: 500; margin-left: 6px; }
+  .modeswitch { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--s1); border: 1px solid var(--line); }
+  .modeswitch button {
+    font: 600 12px var(--font); letter-spacing: .02em; color: var(--t2);
+    background: transparent; border: 0; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+    display: inline-flex; gap: 6px; align-items: center;
+  }
+  .modeswitch button.on { background: color-mix(in srgb, var(--moss) 18%, transparent); color: var(--moss); }
+
+  .layout { display: grid; grid-template-columns: 232px 1fr; gap: 0; }
+  nav.toc {
+    position: sticky; top: 61px; align-self: start; height: calc(100vh - 61px); overflow-y: auto;
+    padding: 28px 18px 40px 28px; border-right: 1px solid var(--line);
+  }
+  nav.toc .grp { font: 600 10.5px var(--font); letter-spacing: .16em; text-transform: uppercase; color: var(--t3); margin: 20px 0 8px; }
+  nav.toc a {
+    display: flex; gap: 10px; align-items: baseline; text-decoration: none; color: var(--t2);
+    font-size: 13px; padding: 5px 8px; border-radius: 8px; margin-left: -8px;
+  }
+  nav.toc a span { font: 500 11px var(--mono); color: var(--t3); min-width: 18px; }
+  nav.toc a:hover, nav.toc a.active { color: var(--t1); background: var(--s1); }
+  nav.toc a.active span { color: var(--moss); }
+
+  main { padding: 36px 40px 120px; display: flex; flex-direction: column; gap: 36px; min-width: 0; }
+  .slide {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 28px;
+    padding: 52px 56px 56px; position: relative; overflow: hidden;
+    max-width: 1320px; width: 100%; margin: 0 auto;
+    scroll-margin-top: 80px;
+  }
+  .slide-head { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; margin-bottom: 36px; }
+  .kicker { font: 600 11px var(--font); letter-spacing: .18em; text-transform: uppercase; color: var(--moss); margin-bottom: 12px; display: flex; gap: 10px; align-items: center; }
+  .kicker::before { content: ""; width: 18px; height: 2px; border-radius: 2px; background: var(--moss); }
+  .slide h2 { font-size: 38px; line-height: 1.1; font-weight: 600; letter-spacing: -.02em; }
+  .lead { color: var(--t2); font-size: 15.5px; line-height: 1.6; max-width: 720px; margin-top: 12px; }
+  .slide-no { font: 500 13px var(--mono); color: var(--t3); }
+  h3.sec { font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--t2); margin: 36px 0 16px; }
+  h3.sec:first-child { margin-top: 0; }
+  p.note { color: var(--t2); font-size: 13.5px; line-height: 1.6; }
+  code, .mono { font-family: var(--mono); font-size: .92em; }
+  .card { background: var(--s1); border: 1px solid var(--line); border-radius: 20px; padding: 22px; }
+  .grid { display: grid; gap: 18px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .g4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .tag { display: inline-flex; align-items: center; gap: 6px; font: 600 11px var(--font); letter-spacing: .04em; padding: 4px 9px; border-radius: 999px; background: var(--s2); color: var(--t2); }
+  .tag.ok { background: color-mix(in srgb, var(--moss) 18%, transparent); color: var(--moss); }
+  .tag.warn { background: color-mix(in srgb, var(--berry) 18%, transparent); color: var(--berry); }
+  .tag.bad { background: color-mix(in srgb, var(--lingon) 18%, transparent); color: var(--lingon); }
+  table.spec { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.spec th { text-align: left; font: 600 10.5px var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--t3); padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  table.spec td { padding: 11px 12px; border-bottom: 1px solid var(--line); color: var(--t2); vertical-align: middle; }
+  table.spec td:first-child { color: var(--t1); font-weight: 500; }
+  table.spec tr:last-child td { border-bottom: 0; }
+
+  /* Screen gallery */
+  .screens { display: grid; grid-template-columns: repeat(auto-fill, minmax(392px, 1fr)); gap: 32px 20px; justify-items: center; }
+  .screens.tight { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  figure.shot { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  figure.shot figcaption { text-align: center; }
+  figure.shot figcaption b { display: block; font-size: 14px; font-weight: 600; }
+  figure.shot figcaption span { font: 500 11px var(--mono); color: var(--t3); }
+  figure.shot figcaption p { color: var(--t2); font-size: 12.5px; line-height: 1.5; max-width: 340px; margin-top: 6px; }
+  .bezel {
+    padding: 12px; border-radius: 50%;
+    background: radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--bezel) 100%, white 12%), var(--bezel) 55%, color-mix(in srgb, var(--bezel) 80%, black 30%));
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .scaled { transform: scale(.78); transform-origin: top center; margin-bottom: calc(-384px * .22); }
+
+  pre.code {
+    background: var(--s1); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px;
+    font: 12px/1.65 var(--mono); color: var(--t2); overflow: auto; max-height: 460px; white-space: pre;
+  }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tabs button { font: 600 12px var(--font); color: var(--t2); background: var(--s1); border: 1px solid var(--line); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+  .tabs button.on { color: var(--moss); border-color: var(--moss); background: color-mix(in srgb, var(--moss) 12%, transparent); }
+  .copy { float: right; font: 600 11px var(--font); color: var(--t2); background: var(--s2); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+
+  /* ───────────────────────── Device primitives (360 × 360) ───────────────────────── */
+  .dev {
+    width: 360px; height: 360px; border-radius: 50%; position: relative; overflow: hidden;
+    background: var(--bg); color: var(--t1); font-family: var(--font);
+    font-size: 15px; line-height: 1.25; isolation: isolate;
+  }
+  .dev * { line-height: inherit; }
+  .abs { position: absolute; }
+  .fill { inset: 0; }
+  .ctr { left: 0; right: 0; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+  /* Type scale — device px */
+  .t-display { font-size: 64px; font-weight: 300; letter-spacing: -.03em; line-height: 1; }
+  .t-hero    { font-size: 40px; font-weight: 400; letter-spacing: -.02em; line-height: 1; }
+  .t-title   { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+  .t-head    { font-size: 17px; font-weight: 600; }
+  .t-body    { font-size: 15px; font-weight: 500; }
+  .t-sub     { font-size: 13px; font-weight: 500; color: var(--t2); }
+  .t-cap     { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--t3); }
+  .t-over    { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--t2); }
+  .c1 { color: var(--t1); } .c2 { color: var(--t2); } .c3 { color: var(--t3); }
+  .cm { color: var(--moss); } .cf { color: var(--fjord); } .cb { color: var(--berry); } .cl { color: var(--lingon); } .cw { color: var(--birch); } .ch { color: var(--heather); }
+
+  .sb { top: 20px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--t2); }
+  .sb i { width: 3px; height: 3px; border-radius: 50%; background: var(--t3); display: inline-block; }
+  .grab { top: 9px; left: 50%; width: 30px; height: 4px; margin-left: -15px; border-radius: 4px; background: var(--s3); }
+  .hint { bottom: 20px; left: 0; right: 0; text-align: center; font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--t3); display: flex; justify-content: center; align-items: center; gap: 6px; }
+  .scrim { inset: 0; background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(6px); }
+
+  .list { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .row {
+    display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 14px 0 10px;
+    border-radius: 18px; background: var(--s1); border: 1.5px solid transparent;
+    transition: all .2s var(--ease-settle);
+  }
+  .row .ri { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--s2); color: var(--t2); flex: none; }
+  .row .rt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; overflow: hidden; }
+  .row .rt b { font-size: 15px; font-weight: 600; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .rt b.train { overflow: visible; text-overflow: clip; display: inline-block; width: max-content; animation: trainSlide 5.5s ease-in-out infinite alternate; }
+  @keyframes trainSlide { 0%, 22% { transform: translateX(0); } 78%, 100% { transform: translateX(-34px); } }
+  .row .rt em { font-style: normal; font-size: 12px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .rv { font-size: 12.5px; color: var(--t2); display: flex; align-items: center; gap: 6px; flex: none; }
+  .row.sel { background: var(--s2); border-color: var(--moss); }
+  .row.sel .ri { background: color-mix(in srgb, var(--moss) 20%, transparent); color: var(--moss); }
+  .row.press { background: var(--s3); }
+  .row.dis { opacity: .4; }
+  .row.compact { height: 44px; border-radius: 15px; }
+
+  .tog { width: 40px; height: 24px; border-radius: 999px; background: var(--s3); position: relative; flex: none; transition: background .2s; }
+  .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--t2); transition: all .2s var(--ease-settle); }
+  .tog.on { background: var(--moss); }
+  .tog.on::after { left: 19px; background: var(--onAccent); }
+
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; border-radius: 999px; background: var(--s1); border: 1px solid var(--line); font-size: 12.5px; font-weight: 600; color: var(--t2); white-space: nowrap; }
+  .pill.on { background: color-mix(in srgb, var(--moss) 16%, transparent); border-color: color-mix(in srgb, var(--moss) 60%, transparent); color: var(--moss); }
+  .pill.sm { height: 24px; padding: 0 10px; font-size: 11px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .02em; background: var(--s2); color: var(--t2); white-space: nowrap; }
+  .chip.m { background: color-mix(in srgb, var(--moss) 16%, transparent); color: var(--moss); }
+  .chip.f { background: color-mix(in srgb, var(--fjord) 16%, transparent); color: var(--fjord); }
+  .chip.b { background: color-mix(in srgb, var(--berry) 16%, transparent); color: var(--berry); }
+  .chip.l { background: color-mix(in srgb, var(--lingon) 16%, transparent); color: var(--lingon); }
+
+  .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--s1); border: 1px solid var(--line); gap: 2px; }
+  .seg span { height: 26px; padding: 0 12px; display: grid; place-items: center; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--t2); }
+  .seg span.on { background: color-mix(in srgb, var(--moss) 18%, transparent); color: var(--moss); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 20px; border-radius: 999px; font-size: 14px; font-weight: 600; background: var(--s2); color: var(--t1); white-space: nowrap; }
+  .btn.pri { background: var(--moss); color: var(--onAccent); }
+  .btn.dng { background: var(--lingon); color: var(--onAccent); }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--t2); }
+  .btn.dis { opacity: .4; }
+  .btn.press { filter: brightness(.88); transform: scale(.97); }
+
+  .rb { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .rb .o { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--s2); color: var(--t1); }
+  .rb .o.on { background: color-mix(in srgb, var(--moss) 20%, transparent); color: var(--moss); box-shadow: inset 0 0 0 1.5px var(--moss); }
+  .rb .o.dng { background: color-mix(in srgb, var(--lingon) 18%, transparent); color: var(--lingon); }
+  .rb .o.big { width: 64px; height: 64px; }
+  .rb .o.pri { background: var(--moss); color: var(--onAccent); }
+  .rb label { font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--t3); }
+
+  .sheet { left: 0; right: 0; bottom: 0; background: var(--s1); border-top: 1px solid var(--line); border-radius: 30px 30px 0 0; }
+  .sheet .grip { width: 30px; height: 4px; border-radius: 4px; background: var(--s3); margin: 10px auto 0; }
+
+  .tile { border-radius: 20px; background: var(--s1); border: 1.5px solid transparent; padding: 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .tile .ti { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--s2); color: var(--t2); }
+  .tile b { font-size: 13.5px; font-weight: 600; }
+  .tile em { font-style: normal; font-size: 11.5px; color: var(--t2); }
+  .tile.on { background: color-mix(in srgb, var(--fjord) 12%, var(--s1)); }
+  .tile.on .ti { background: color-mix(in srgb, var(--fjord) 22%, transparent); color: var(--fjord); }
+  .tile.on em { color: var(--fjord); }
+  .tile.warm .ti { background: color-mix(in srgb, var(--berry) 22%, transparent); color: var(--berry); }
+  .tile.warm em { color: var(--berry); }
+
+  .pebble { display: grid; place-items: center; border-radius: 34%; position: relative; }
+  .art { border-radius: 50%; overflow: hidden; position: relative; }
+  .art svg { display: block; width: 100%; height: 100%; }
+  .spin { animation: spin 18s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .breathe { animation: breathe 3.2s var(--ease-glide) infinite; }
+  @keyframes breathe { 0%,100% { opacity: .45; transform: scale(.96); } 50% { opacity: 1; transform: scale(1); } }
+  .eqbars { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; }
+  .eqbars i { width: 2.5px; border-radius: 2px; background: var(--moss); animation: eqb 1s ease-in-out infinite; }
+  .eqbars i:nth-child(1){height:6px;animation-delay:-.2s}.eqbars i:nth-child(2){height:11px;animation-delay:-.5s}.eqbars i:nth-child(3){height:8px;animation-delay:-.8s}.eqbars i:nth-child(4){height:10px;animation-delay:-.35s}
+  @keyframes eqb { 0%,100% { transform: scaleY(.45); } 50% { transform: scaleY(1); } transform-origin: bottom; }
+
+  /* Static diagrams */
+  .swatch { border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: var(--s1); }
+  .swatch .chipc { height: 92px; position: relative; }
+  .swatch .meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .swatch .meta b { font-size: 14px; font-weight: 600; }
+  .swatch .meta span { font: 500 11.5px var(--mono); color: var(--t2); }
+  .swatch .meta em { font-style: normal; font-size: 12px; color: var(--t3); }
+  .ratio { display: flex; height: 44px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+  .ratio div { display: grid; place-items: center; font: 600 11px var(--font); letter-spacing: .08em; }
+  .dodont { border-radius: 18px; border: 1px solid var(--line); overflow: hidden; background: var(--s1); }
+  .dodont .head { padding: 10px 16px; font: 600 11px var(--font); letter-spacing: .14em; text-transform: uppercase; }
+  .dodont .body { padding: 6px 16px 16px; color: var(--t2); font-size: 13px; line-height: 1.55; }
+  .mood { border-radius: 22px; overflow: hidden; position: relative; aspect-ratio: 1; background: var(--s2); border: 1px solid var(--line); }
+  .mood img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mood .lbl { position: absolute; left: 12px; bottom: 12px; right: 12px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 14px; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(10px); font-size: 12.5px; font-weight: 600; }
+  .mood .dots { display: flex; gap: 4px; } .mood .dots i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); }
+  .iconcell { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 6px 14px; border-radius: 16px; background: var(--s1); border: 1px solid var(--line); color: var(--t1); }
+  .iconcell span { font: 500 10.5px var(--mono); color: var(--t3); }
+  .flow { display: grid; gap: 14px; }
+  .node { background: var(--s1); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 12.5px; color: var(--t2); display: flex; gap: 10px; align-items: center; }
+  .node b { color: var(--t1); font-weight: 600; display: block; font-size: 13px; }
+  .node .id { font: 500 10.5px var(--mono); color: var(--t3); }
+  .node.root { border-color: var(--moss); }
+  .curve { height: 120px; background: var(--s1); border: 1px solid var(--line); border-radius: 16px; position: relative; overflow: hidden; }
+  .demo-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--moss); position: absolute; top: 50%; margin-top: -9px; left: 16px; }
+  .curve:hover .demo-dot { left: calc(100% - 34px); }
+  .cover-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; min-height: 520px; }
+  .cover-hero h1 { font-size: 76px; line-height: .95; font-weight: 600; letter-spacing: -.035em; }
+  .cover-hero h1 em { font-style: normal; color: var(--moss); }
+  .cover-devices { position: relative; height: 520px; }
+  .cover-devices .bezel { position: absolute; }
+
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; } nav.toc { display: none; }
+    .g4 { grid-template-columns: repeat(2, minmax(0,1fr)); } .g3 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .cover-hero { grid-template-columns: 1fr; }
+  }
+  @media print { .topbar, nav.toc { display: none; } .layout { display: block; } .slide { break-after: page; } }
+</style>
+</head>
+<body data-mode="night">
+
+<div class="topbar">
+  <div class="brand"><span id="brandIcon"></span>Fjäll <small>DialOS Design Language · v0.1 · Oct 2026</small></div>
+  <div class="modeswitch" id="modeSwitch">
+    <button data-mode="night" class="on"><span data-ic="moon" data-s="14"></span>Polar Night</button>
+    <button data-mode="day"><span data-ic="sun" data-s="14"></span>Birch Day</button>
+  </div>
+</div>
+
+<div class="layout">
+<nav class="toc" id="toc"></nav>
+<main id="deck">
+<!-- SLIDES_START -->
+
+<!-- ═════════════ 00 · COVER ═════════════ -->
+<section class="slide" id="s-cover" data-toc="Cover" data-grp="Foundation">
+  <div class="cover-hero">
+    <div>
+      <div class="kicker">DialOS · FiiO Snowsky DISC · 360 × 360 round LCD</div>
+      <h1>Fjäll.<br><em>Calm sound,</em><br>natural interface.</h1>
+      <p class="lead" style="margin-top:22px">Fjäll (Swedish: <i>“the fell”</i>, the bare highland above the tree line) is the design language for DialOS. It takes its cues from Nordic workspaces and Nordic landscapes: soft daylight, honest materials, muted colour taken from moss, birch, fjord water and cloudberry, and lots of quiet space.</p>
+      <div style="display:flex; gap:8px; margin-top:26px; flex-wrap:wrap">
+        <span class="tag ok">1 theme · 2 modes</span><span class="tag">6 apps · 40+ screens</span><span class="tag">56 icons</span><span class="tag">Token-driven</span>
+      </div>
+      <p class="note" style="margin-top:28px; max-width:560px">Use the <b>Polar Night / Birch Day</b> switch at the top. Every screen on this page re-renders from the same token set, which shows the theme holds together in both modes.</p>
+    </div>
+    <div class="cover-devices" id="coverDevices"></div>
+  </div>
+</section>
+
+<!-- ═════════════ 01 · PRINCIPLES ═════════════ -->
+<section class="slide" id="s-principles" data-toc="Principles" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">01 · Principles</div><h2>Four rules behind every pixel</h2>
+  <p class="lead">When a design decision is unclear, check it against these four principles. If a screen breaks one of them, it doesn't ship.</p></div><div class="slide-no">01</div></div>
+  <div class="grid g4" id="principles"></div>
+</section>
+
+<!-- ═════════════ 02 · MOODBOARD ═════════════ -->
+<section class="slide" id="s-mood" data-toc="Moodboard" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">02 · Inspiration</div><h2>Moodboard: the land above the trees</h2>
+  <p class="lead">Every colour token is sampled from one of these four materials. Use this board to decide what is "on-brand": if a colour could not be found on this hillside, it does not belong in the UI.</p></div><div class="slide-no">02</div></div>
+  <div class="grid g4">
+    <div class="mood"><img src="moodboard/birch.jpg" alt="Birch bark"><div class="lbl">Birch · Björk<div class="dots"><i style="background:#ECEEE8"></i><i style="background:#D8CFBD"></i><i style="background:#2E3532"></i></div></div></div>
+    <div class="mood"><img src="moodboard/moss.jpg" alt="Moss on granite"><div class="lbl">Moss · Mossa<div class="dots"><i style="background:#8DB596"></i><i style="background:#4C7A5A"></i><i style="background:#6A746F"></i></div></div></div>
+    <div class="mood"><img src="moodboard/fjord.jpg" alt="Fjord at dawn"><div class="lbl">Fjord · Fjord<div class="dots"><i style="background:#8FB3C9"></i><i style="background:#121615"></i><i style="background:#E2A66A"></i></div></div></div>
+    <div class="mood" id="moodOffice"></div>
+  </div>
+  <div class="grid g4" style="margin-top:18px">
+    <p class="note"><b class="c1">Birch</b> gives the light neutrals: the snow-linen text and the warm sand highlights.</p>
+    <p class="note"><b class="c1">Moss</b> gives the single primary accent. It marks selection, focus, progress and "on".</p>
+    <p class="note"><b class="c1">Fjord</b> gives the night surfaces and the connectivity colour, plus a thin cloudberry sunrise for warmth.</p>
+    <p class="note"><b class="c1">Nordic office</b> covers oak, linen, wool and soft daylight: rounded geometry, tactile surfaces, no gloss.</p>
+  </div>
+</section>
+
+<!-- ═════════════ 03 · COLOUR ═════════════ -->
+<section class="slide" id="s-color" data-toc="Colour" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">03 · Colour</div><h2>Palette &amp; semantic tokens</h2>
+  <p class="lead">Engineers never use a hex value directly. They use a <b>role token</b> (<code>surface-1</code>, <code>accent</code>, <code>danger</code>…), and the mode (Night / Day) decides which hex value that role resolves to. Contrast ratios below are calculated live against <code>bg</code>.</p></div><div class="slide-no">03</div></div>
+  <h3 class="sec">Neutrals: granite &amp; snow</h3>
+  <div class="grid" style="grid-template-columns: repeat(8, minmax(0,1fr))" id="swNeutral"></div>
+  <h3 class="sec">Nature accents</h3>
+  <div class="grid" style="grid-template-columns: repeat(6, minmax(0,1fr))" id="swAccent"></div>
+</section>
+
+<!-- ═════════════ 04 · COLOUR RULES ═════════════ -->
+<section class="slide" id="s-color-rules" data-toc="Colour rules" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">04 · Colour usage</div><h2>One accent, used with intent</h2>
+  <p class="lead">The current screens mix amber, cyan and green on the same view. Fjäll fixes this with a strict rule: <b>Moss is the only interactive accent.</b> The other nature colours are <i>semantic</i>, so each one always means the same thing anywhere in the OS.</p></div><div class="slide-no">04</div></div>
+  <div class="grid g2" style="align-items:start">
+    <div>
+      <h3 class="sec">Proportion per screen (60 · 30 · 10)</h3>
+      <div class="ratio" id="ratioBar"></div>
+      <h3 class="sec">Semantic meaning: fixed everywhere</h3>
+      <table class="spec" id="semTable"></table>
+    </div>
+    <div>
+      <h3 class="sec">Do &amp; don't</h3>
+      <div class="grid g2" id="dodont"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 05 · TYPOGRAPHY ═════════════ -->
+<section class="slide" id="s-type" data-toc="Typography" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">05 · Typography</div><h2>Inter, set calm &amp; legible at 1.8″</h2>
+  <p class="lead">One family (Inter, OFL licence, bundled as a bitmap/TTF atlas on device) with seven roles. Sizes are in <b>device pixels on the 360 × 360 panel</b>. Numbers always use tabular figures so times and volume levels don't jitter as they change.</p></div><div class="slide-no">05</div></div>
+  <div class="grid" style="grid-template-columns: 1.3fr 1fr; align-items:start">
+    <table class="spec" id="typeTable"></table>
+    <div class="card">
+      <div class="t-cap" style="margin-bottom:10px">Rules</div>
+      <ul class="note" style="padding-left:18px; display:grid; gap:8px">
+        <li>Minimum on-device size: <b>11 px</b>. Caption / overline only.</li>
+        <li>Uppercase is reserved for <b>Caption &amp; Overline</b>, always tracked +0.14–0.16 em. Never uppercase titles.</li>
+        <li>Max <b>2 weights per screen</b> (usually 600 + 500). Display uses 300 for an airy clock.</li>
+        <li>Text is centred in the circle. Long strings <b>truncate with an ellipsis</b> (one line) or marquee only on the focused row after 1.2 s.</li>
+        <li>Colour order: <code>text-1</code> for the subject, <code>text-2</code> for supporting detail, <code>text-3</code> for hints. Accent-coloured text only for the active value.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 06 · GEOMETRY ═════════════ -->
+<section class="slide" id="s-geometry" data-toc="Round-screen geometry" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">06 · Layout</div><h2>Designing for a circle</h2>
+  <p class="lead">Every screen uses three concentric zones. The <b>rim</b> belongs to the thumb, the <b>stage</b> holds content, and the <b>core</b> holds the single most important thing. Nothing interactive sits outside the rim ring, and nothing essential sits under it.</p></div><div class="slide-no">06</div></div>
+  <div class="grid" style="grid-template-columns: auto 1fr; gap:48px; align-items:center">
+    <div id="geoDiagram"></div>
+    <table class="spec">
+      <tr><th>Zone</th><th>Radius (px from centre)</th><th>Purpose</th></tr>
+      <tr><td><span class="tag" style="background:color-mix(in srgb,var(--berry) 20%,transparent);color:var(--berry)">Rim</span></td><td class="mono">r 150 – 180</td><td>Touch band for rotary gestures (list scroll, volume, brightness). Holds only arcs, ticks and a 2-letter label. Track seek lives on the inner vinyl circle (<i>r</i> = 38 px, 0° = 0% → 359° = 99%).</td></tr>
+      <tr><td><span class="tag ok">Stage</span></td><td class="mono">r 60 – 150</td><td>Lists, cards, controls. Usable width ≈ 2·√(150² − y²). Rows narrow towards the top &amp; bottom.</td></tr>
+      <tr><td><span class="tag" style="background:color-mix(in srgb,var(--fjord) 20%,transparent);color:var(--fjord)">Core</span></td><td class="mono">r 0 – 60</td><td>The hero: album art, clock, focused item, primary value. Tap here = primary action.</td></tr>
+      <tr><td>Safe square</td><td class="mono">254 × 254 @ (53,53)</td><td>Inscribed square: a rectangular layout is guaranteed visible inside it.</td></tr>
+      <tr><td>Status line</td><td class="mono">y 20 – 36</td><td>Time · battery, centred. Max width 140 px.</td></tr>
+      <tr><td>Hint line</td><td class="mono">y 324 – 340</td><td>Gesture hint (Caption). Fades out after 3 s of use.</td></tr>
+      <tr><td>Touch target</td><td class="mono">≥ 44 × 44</td><td>Visual can be smaller (e.g. 32 px icon) but the hit area is padded to 44.</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═════════════ 07 · SPACING / SHAPE ═════════════ -->
+<section class="slide" id="s-space" data-toc="Spacing & shape" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">07 · Spacing, radius, depth</div><h2>Soft, pebble-like shapes</h2>
+  <p class="lead">There are no sharp corners and no hard drop shadows. Depth comes from <b>tone</b>: each elevation step is a slightly lighter surface (Night) or slightly darker surface (Day), the way wool layers on wool.</p></div><div class="slide-no">07</div></div>
+  <div class="grid g3" style="align-items:start">
+    <div><h3 class="sec">Spacing · 4 px base</h3><div id="spaceScale" class="card" style="display:grid; gap:10px"></div></div>
+    <div><h3 class="sec">Corner radius</h3><div id="radiusScale" class="card" style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px"></div></div>
+    <div><h3 class="sec">Elevation by tone</h3><div id="elevScale" class="card" style="display:grid; gap:10px"></div></div>
+  </div>
+</section>
+
+<!-- ═════════════ 08 · ICONOGRAPHY ═════════════ -->
+<section class="slide" id="s-icons" data-toc="Iconography" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">08 · Iconography</div><h2>Fjäll line icons</h2>
+  <p class="lead">A custom set drawn on a 24 px grid with a <b>1.75 px stroke</b>, round caps and joins, and 2 px of padding. Shapes are softened, a little organic: pebble-shaped controller, leaf for “liked”, tree rings for “now playing”. Icons are one colour and inherit <code>currentColor</code>.</p></div><div class="slide-no">08</div></div>
+  <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(104px,1fr)); gap:10px" id="iconGrid"></div>
+  <div class="grid g4" style="margin-top:22px" id="iconRules"></div>
+</section>
+
+<!-- ═════════════ 09 · APP ICONS ═════════════ -->
+<section class="slide" id="s-appicons" data-toc="App icons" data-grp="Foundation">
+  <div class="slide-head"><div><div class="kicker">09 · App icons</div><h2>Six pebbles, one family</h2>
+  <p class="lead">Each core app gets a <b>pebble</b>: a circle tinted 18 % with its nature colour, with the line icon in that colour on top. The tint is the <i>only</i> place an app colour shows up. Inside the app, Moss takes over again. That keeps the launcher lively and the apps calm.</p></div><div class="slide-no">09</div></div>
+  <div class="grid" style="grid-template-columns: repeat(6, minmax(0,1fr))" id="appIcons"></div>
+  <h3 class="sec">Construction</h3>
+  <div class="grid g3" id="pebbleSpec"></div>
+</section>
+
+<!-- ═════════════ 10 · COMPONENTS ═════════════ -->
+<section class="slide" id="s-components" data-toc="Components" data-grp="System">
+  <div class="slide-head"><div><div class="kicker">10 · Components</div><h2>The building blocks</h2>
+  <p class="lead">Every screen in this document is assembled only from these components. If a new screen needs something that isn't here, add it to this page first, then build it.</p></div><div class="slide-no">10</div></div>
+  <div class="grid g3" id="components"></div>
+</section>
+
+<!-- ═════════════ 11 · STATES ═════════════ -->
+<section class="slide" id="s-states" data-toc="Interaction states" data-grp="System">
+  <div class="slide-head"><div><div class="kicker">11 · States</div><h2>Default · Focused · Pressed · Disabled</h2>
+  <p class="lead">On a rotary UI, <b>focus</b> means the item under the virtual click-wheel. It is always shown with a 1.5 px Moss border and a one-step-lighter surface, never with colour alone. Pressed = one more tone step plus a 97 % scale. Disabled = 40 % opacity.</p></div><div class="slide-no">11</div></div>
+  <div id="statesTable"></div>
+</section>
+
+<!-- ═════════════ 12 · MOTION ═════════════ -->
+<section class="slide" id="s-motion" data-toc="Motion & haptics" data-grp="System">
+  <div class="slide-head"><div><div class="kicker">12 · Motion</div><h2>Movement like wind through grass</h2>
+  <p class="lead">Motion is short, soft and physical: things <b>settle</b> into place instead of bouncing. Hover the curves to preview them. Each rim detent pairs a motion with a haptic tick so the wheel feels mechanical.</p></div><div class="slide-no">12</div></div>
+  <div class="grid g2" style="align-items:start">
+    <table class="spec" id="motionTable"></table>
+    <div class="grid" style="gap:12px">
+      <div><div class="t-cap" style="margin-bottom:6px">settle · 200 ms · cubic-bezier(.2,.8,.2,1)</div><div class="curve"><div class="demo-dot" style="transition:left .2s var(--ease-settle)"></div></div></div>
+      <div><div class="t-cap" style="margin-bottom:6px">glide · 320 ms · cubic-bezier(.4,0,.2,1)</div><div class="curve"><div class="demo-dot" style="transition:left .32s var(--ease-glide); background:var(--fjord)"></div></div></div>
+      <div><div class="t-cap" style="margin-bottom:6px">drift · 1200 ms · linear (ambient only)</div><div class="curve"><div class="demo-dot" style="transition:left 1.2s linear; background:var(--berry)"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 13 · NAVIGATION ═════════════ -->
+<section class="slide" id="s-nav" data-toc="Navigation map" data-grp="System">
+  <div class="slide-head"><div><div class="kicker">13 · Information architecture</div><h2>Navigation map &amp; global gestures</h2>
+  <p class="lead">The hierarchy is three levels deep at most. Each node carries the <b>screen ID</b> used on the screen slides, so design, the preview and the code all refer to screens the same way.</p></div><div class="slide-no">13</div></div>
+  <div id="navMap"></div>
+  <h3 class="sec">Global gestures: identical on every screen</h3>
+  <table class="spec" id="gestureTable"></table>
+</section>
+
+<!-- ═════════════ 14 · REDLINE ═════════════ -->
+<section class="slide" id="s-redline" data-toc="Redline example" data-grp="System">
+  <div class="slide-head"><div><div class="kicker">14 · Redlines</div><h2>Anatomy of a screen</h2>
+  <p class="lead">A measured example of the two most common templates. The numbers are device pixels on the 360 grid. Every list screen and every "now playing"-style screen follows the same measurements.</p></div><div class="slide-no">14</div></div>
+  <div class="grid g2" style="justify-items:center" id="redlines"></div>
+</section>
+
+<!-- SCREEN SLIDES -->
+<section class="slide" id="s-core" data-toc="System & Home" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">15 · Screens</div><h2>Lock, home &amp; system hub</h2>
+  <p class="lead">The entry points. The Home carousel shows one app at a time in the core. The thumb rotates the rim to switch apps and a tap opens the app. Pull down from the top edge, from anywhere, to open the Control Center.</p></div><div class="slide-no">15</div></div>
+  <div class="screens" data-group="core"></div>
+</section>
+<section class="slide" id="s-np" data-toc="01 · Now Playing" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">16 · App 01</div><h2>Now Playing · Pure Full-Bleed Vinyl</h2>
+  <p class="lead">The <b>360 × 360 full-bleed cover</b> is completely free of text and has no left-side seek arc. Track progress is a single 360° ring around the <b>inner circle of the vinyl</b> (<i>r</i> = 38 px), where <b>0° (12 o'clock) = 0%</b> and <b>359° = 99%</b> of the song. Users can seek either by <b>sliding the inner circle directly</b> (radial angle capture) or by <b>long-pressing &amp; turning anywhere on the vinyl</b> like a real turntable. <b>1 touch</b> opens Quick Actions (floating song/artist/album + bottom 4-icon arc); <b>2 quick touches</b> pauses or plays.</p></div><div class="slide-no">16</div></div>
+  <div class="screens" data-group="np"></div>
+</section>
+<section class="slide" id="s-lib" data-toc="02 · Library" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">17 · App 02</div><h2>Music Library</h2>
+  <p class="lead">All lists use the same <b>Fisheye Rim List</b>: the focused row sits at the centre at full width, and neighbours shrink and fade towards the edges of the circle.</p></div><div class="slide-no">17</div></div>
+  <div class="screens" data-group="lib"></div>
+</section>
+<section class="slide" id="s-files" data-toc="03 · Files" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">18 · App 03</div><h2>Browse Files</h2>
+  <p class="lead">A direct view of the microSD tree. Long-pressing a <b>file</b> opens the Action Sheet to <b>edit metadata &amp; filename</b>, move, or delete. Long-pressing a <b>folder</b> allows renaming the folder, or <b>recursively moving / deleting</b> the folder and all contents inside it. Destructive actions require a 600 ms hold on the Lingon button.</p></div><div class="slide-no">18</div></div>
+  <div class="screens" data-group="files"></div>
+</section>
+<section class="slide" id="s-modes" data-toc="04 · Operating Modes" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">19 · App 04</div><h2>Operating Modes</h2>
+  <p class="lead">The six hardware modes share <b>one status template</b>: overline, mode pebble, hero value, two info rows and the output line. Only the data changes, never the layout.</p></div><div class="slide-no">19</div></div>
+  <div class="screens tight" data-group="modes"></div>
+</section>
+<section class="slide" id="s-settings" data-toc="05 · Settings" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">20 · App 05</div><h2>Settings &amp; Fast-Cache Bluetooth</h2>
+  <p class="lead">Settings are rows with a <b>value on the right</b>: a chevron to drill down, a toggle to switch, or a short value chip. In <b>Bluetooth (SET-07)</b>, the last connected device becomes the <b>default MRU peer</b> (cached in NVS with its <code>BD_ADDR</code>, clock offset, remote <code>AVDTP SEID</code>, preferred codec, and saved volume). On Bluetooth enable, DialOS issues a unicast <b>Direct Page</b> before scanning (&lt; 400 ms reconnect) and negotiates the codec ladder from <b>LDAC 990 kbps</b> down to <b>SBC</b>.</p></div><div class="slide-no">20</div></div>
+  <div class="screens" data-group="settings"></div>
+</section>
+<section class="slide" id="s-games" data-toc="06 · Games" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">21 · App 06</div><h2>Arcade</h2>
+  <p class="lead">Games are allowed to play a little more, but only with palette colours: Cloudberry for score and energy, Moss for the player, Fjord for the field.</p></div><div class="slide-no">21</div></div>
+  <div class="screens" data-group="games"></div>
+</section>
+<section class="slide" id="s-overlays" data-toc="Dialogs & feedback" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">22 · System feedback</div><h2>Dialogs, toasts &amp; HUDs</h2>
+  <p class="lead">Transient UI is always layered above a <b>72 % scrim with a 6 px blur</b>, so context stays visible but out of the way. Toasts auto-dismiss after 2.4 s. Dialogs need an explicit choice.</p></div><div class="slide-no">22</div></div>
+  <div class="screens" data-group="overlays"></div>
+</section>
+
+<!-- ═════════════ HANDOFF ═════════════ -->
+<section class="slide" id="s-a11y" data-toc="Accessibility" data-grp="Handoff">
+  <div class="slide-head"><div><div class="kicker">23 · Accessibility</div><h2>Quiet, but never hard to read</h2>
+  <p class="lead">The checks below are calculated live from the tokens for the current mode. Switch modes at the top to verify the other one.</p></div><div class="slide-no">23</div></div>
+  <table class="spec" id="a11yTable"></table>
+</section>
+
+<section class="slide" id="s-tokens" data-toc="Tokens (code)" data-grp="Handoff">
+  <div class="slide-head"><div><div class="kicker">24 · Engineering handoff</div><h2>Design tokens: copy &amp; build</h2>
+  <p class="lead">These exports are generated from the same object that renders this page. The C header includes <b>RGB565</b> values for the DISC framebuffer and is meant to replace the Stone palette in <code>include/dial_theme.h</code>.</p></div><div class="slide-no">24</div></div>
+  <div class="tabs" id="tokTabs"><button data-k="c" class="on">C header</button><button data-k="css">CSS variables</button><button data-k="json">JSON (W3C DTCG)</button></div>
+  <pre class="code" id="tokOut"></pre>
+</section>
+
+<section class="slide" id="s-checklist" data-toc="Build checklist" data-grp="Handoff">
+  <div class="slide-head"><div><div class="kicker">25 · Definition of done</div><h2>Build checklist per screen</h2>
+  <p class="lead">Before a screen is merged, it is compared against this page side by side. Every box must be true.</p></div><div class="slide-no">25</div></div>
+  <div class="grid g3" id="checklist"></div>
+</section>
+<!-- SLIDES_END -->
+</main>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   1 · TOKENS — the single source of truth
+   ════════════════════════════════════════════════════════════════════ */
+const TOKENS = {
+  meta: { name: "Fjäll", version: "0.1.0", display: "360x360 round", grid: 4 },
+  color: {
+    night: {
+      page:   ["#0D100F", "Deck backdrop (not on device)"],
+      bg:     ["#121615", "Pine Night · screen background"],
+      s1:     ["#1A1F1D", "Surface 1 · rows, cards"],
+      s2:     ["#232927", "Surface 2 · focused row, icon wells"],
+      s3:     ["#2E3532", "Surface 3 · pressed, tracks, grips"],
+      line:   ["#2A312E", "Hairline · borders, dividers"],
+      t1:     ["#ECEEE8", "Snow · primary text"],
+      t2:     ["#A2ABA5", "Lichen · secondary text"],
+      t3:     ["#6F7974", "Granite · hints, disabled"],
+      moss:   ["#8DB596", "Mossa · primary accent"],
+      fjord:  ["#8FB3C9", "Fjord · connectivity, info"],
+      berry:  ["#E2A66A", "Hjortron (cloudberry) · warmth, warning, score"],
+      lingon: ["#E07F76", "Lingon · destructive, error"],
+      birch:  ["#D8CFBD", "Björk sand · neutral highlight, brightness"],
+      heather:["#B7A0C6", "Ljung (heather) · modes app tint"],
+      onAccent:["#0F1D14", "Text/icon on a filled accent"],
+      bezel:  ["#262B29", "Device bezel (deck only)"]
+    },
+    day: {
+      page:   ["#E6E2D9", "Deck backdrop (not on device)"],
+      bg:     ["#F4F1EA", "Linen · screen background"],
+      s1:     ["#EAE6DD", "Oat · rows, cards"],
+      s2:     ["#DFDAD0", "Surface 2 · focused row, icon wells"],
+      s3:     ["#D0CABE", "Surface 3 · pressed, tracks, grips"],
+      line:   ["#D9D3C7", "Hairline · borders, dividers"],
+      t1:     ["#1C2220", "Pine ink · primary text"],
+      t2:     ["#545D58", "Slate moss · secondary text"],
+      t3:     ["#7E8681", "Pebble · hints, disabled"],
+      moss:   ["#47755A", "Mossa · primary accent"],
+      fjord:  ["#3B6A86", "Fjord · connectivity, info"],
+      berry:  ["#A9652B", "Hjortron · warmth, warning, score"],
+      lingon: ["#AE463D", "Lingon · destructive, error"],
+      birch:  ["#857456", "Björk bark · neutral highlight"],
+      heather:["#76598A", "Ljung · modes app tint"],
+      onAccent:["#FFFFFF", "Text/icon on a filled accent"],
+      bezel:  ["#CFC8BA", "Device bezel (deck only)"]
+    }
+  },
+  type: [
+    ["display", 64, 300, "-0.03em", "Lock clock"],
+    ["hero",    40, 400, "-0.02em", "Big values: 384 kHz, volume"],
+    ["title",   22, 600, "-0.01em", "Screen subject: track, app name"],
+    ["headline",17, 600, "0",       "Section / focused row"],
+    ["body",    15, 500, "0",       "Row titles, buttons"],
+    ["sub",     13, 500, "0",       "Supporting detail"],
+    ["caption", 11, 600, "0.14em",  "Hints, labels · UPPERCASE"]
+  ],
+  space: [4, 8, 12, 16, 20, 24, 32, 48],
+  radius: { xs: 8, sm: 12, md: 18, lg: 24, xl: 30, pill: 999, pebble: "50%" },
+  stroke: { icon: 1.75, focus: 1.5, rim: 4, hairline: 1 },
+  motion: {
+    instant: [80,  "linear", "Detent tick, toggle thumb"],
+    quick:   [140, "cubic-bezier(.2,.8,.2,1)", "Press, focus ring"],
+    settle:  [200, "cubic-bezier(.2,.8,.2,1)", "List scroll snap, pills"],
+    glide:   [320, "cubic-bezier(.4,0,.2,1)", "Sheets, screen push, mode switch"],
+    drift:   [1200,"linear", "Ambient: breathing, disc spin (33⅓ rpm)"]
+  }
+};
+let MODE = "night";
+const C = k => TOKENS.color[MODE][k][0];
+function applyMode(m) {
+  MODE = m; document.body.dataset.mode = m;
+  const root = document.documentElement.style;
+  for (const [k, v] of Object.entries(TOKENS.color[m])) root.setProperty("--" + k, v[0]);
+  document.querySelectorAll("#modeSwitch button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  renderAll();
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   2 · ICONS — 24px grid · 1.75 stroke · round caps
+   "F:" prefix inside a part = filled shape
+   ════════════════════════════════════════════════════════════════════ */
+const ICONS = {
+  // transport
+  play:     ['F:M8 5.6v12.8a1 1 0 0 0 1.53.85l10.1-6.4a1 1 0 0 0 0-1.7L9.53 4.75A1 1 0 0 0 8 5.6z'],
+  pause:    ['F:M7 5h3a.9.9 0 0 1 .9.9v12.2a.9.9 0 0 1-.9.9H7a.9.9 0 0 1-.9-.9V5.9A.9.9 0 0 1 7 5zM14 5h3a.9.9 0 0 1 .9.9v12.2a.9.9 0 0 1-.9.9h-3a.9.9 0 0 1-.9-.9V5.9A.9.9 0 0 1 14 5z'],
+  next:     ['M5.5 6.6v10.8a.8.8 0 0 0 1.25.66l7.4-5.4a.8.8 0 0 0 0-1.32l-7.4-5.4A.8.8 0 0 0 5.5 6.6z', 'M18.5 6v12'],
+  prev:     ['M18.5 6.6v10.8a.8.8 0 0 1-1.25.66l-7.4-5.4a.8.8 0 0 1 0-1.32l7.4-5.4a.8.8 0 0 1 1.25.66z', 'M5.5 6v12'],
+  shuffle:  ['M3 7h3c2 0 3.2 1 4.2 2.7l2.6 4.6C13.8 16 15 17 17 17h4', 'M18.5 14.5 21 17l-2.5 2.5', 'M3 17h3c1.3 0 2.3-.4 3.1-1.2', 'M14.9 8.2C15.7 7.4 16.7 7 18 7h3', 'M18.5 4.5 21 7l-2.5 2.5'],
+  repeat:   ['M4 11.5V9.5A3.5 3.5 0 0 1 7.5 6H19', 'M16.5 3.5 19 6l-2.5 2.5', 'M20 12.5v2A3.5 3.5 0 0 1 16.5 18H5', 'M7.5 20.5 5 18l2.5-2.5'],
+  volume:   ['M4 9.6v4.8a.6.6 0 0 0 .6.6h3l4.4 3.6V5.4L7.6 9H4.6a.6.6 0 0 0-.6.6z', 'M15.5 9a4.2 4.2 0 0 1 0 6', 'M18.2 6.3a8 8 0 0 1 0 11.4'],
+  rings:    ['M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18z', 'M12 6.6c3.2 0 5.5 2.3 5.4 5.6-.1 3-2.5 5.2-5.5 5.2-3.1 0-5.3-2.4-5.3-5.4 0-3 2.4-5.4 5.4-5.4z', 'F:M12 10.3a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4z'],
+  // library
+  note:     ['M9 18V6.6l10-2.4v11.4', 'M6.5 15.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z', 'M16.5 13a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z'],
+  album:    ['M7.5 3.5h9a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-9a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z', 'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z', 'F:M12 11.1a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8z'],
+  artist:   ['M12 4.5a4 4 0 1 1 0 8 4 4 0 0 1 0-8z', 'M4.5 20c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5'],
+  playlist: ['M4 6h12', 'M4 11h12', 'M4 16h7', 'M17.5 13.5v6', 'M14.5 16.5h6'],
+  genre:    ['M12 3.5 20.5 12 12 20.5 3.5 12z', 'M12 8.5 15.5 12 12 15.5 8.5 12z'],
+  leaf:     ['M5 19.5C5 11 10 5 20 4.5c0 10-5.6 15-13.6 15', 'M5 19.5 13.5 11'],
+  heart:    ['M12 19.8 4.9 13a4.6 4.6 0 0 1 6.5-6.5l.6.6.6-.6a4.6 4.6 0 0 1 6.5 6.5z'],
+  mic:      ['M9 7a3 3 0 0 1 6 0v4a3 3 0 0 1-6 0z', 'M5.8 11a6.2 6.2 0 0 0 12.4 0', 'M12 17.2v3.3', 'M9 20.5h6'],
+  lyrics:   ['M6 4.5h12A2.5 2.5 0 0 1 20.5 7v7.5A2.5 2.5 0 0 1 18 17h-6.8l-4.2 3.2V17H6a2.5 2.5 0 0 1-2.5-2.5V7A2.5 2.5 0 0 1 6 4.5z', 'F:M9.3 8.2a1.35 1.35 0 1 1 0 2.7 1.35 1.35 0 0 1 0-2.7z', 'M10.4 9.7c0 1.6-.7 2.7-1.8 3.3', 'F:M14.7 8.2a1.35 1.35 0 1 1 0 2.7 1.35 1.35 0 0 1 0-2.7z', 'M15.8 9.7c0 1.6-.7 2.7-1.8 3.3'],
+  // files
+  folder:   ['M3.5 7.5a2 2 0 0 1 2-2h3.7a1.5 1.5 0 0 1 1.06.44L11.5 7.2h7a2 2 0 0 1 2 2v8.3a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z'],
+  fileaudio:['M7 3.5h6.4L18.5 8.6V19a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5z', 'M13.2 3.6V8.8h5.2', 'M11 16.3v-4.6l2.6-.7', 'M9.8 15.1a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4z'],
+  sdcard:   ['M8.4 3.5h8.1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2V9.2a1 1 0 0 1 .3-.7l3.9-4.7a1 1 0 0 1 .7-.3z', 'M10.5 7v2.5', 'M13 7v2.5', 'M15.5 7v2.5'],
+  edit:     ['M4.5 19.5h3.8L19 8.8a2.7 2.7 0 0 0-3.8-3.8L4.5 15.7z', 'M13.8 6.4l3.8 3.8'],
+  move:     ['M3.5 7.5a2 2 0 0 1 2-2h3.7a1.5 1.5 0 0 1 1.06.44L11.5 7.2h7a2 2 0 0 1 2 2v8.3a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z', 'M8.5 13.5h7', 'M13 11l2.5 2.5L13 16'],
+  trash:    ['M4.5 7h15', 'M9.5 7V5.3a.8.8 0 0 1 .8-.8h3.4a.8.8 0 0 1 .8.8V7', 'M6.5 7l.9 11.6a1.8 1.8 0 0 0 1.8 1.6h5.6a1.8 1.8 0 0 0 1.8-1.6L17.5 7', 'M10.3 11v5.2', 'M13.7 11v5.2'],
+  // modes & connectivity
+  modes:          ['M4 8h13.5', 'M14.5 4.5 18 8l-3.5 3.5', 'M20 16H6.5', 'M9.5 12.5 6 16l3.5 3.5'],
+  mode_player:    ['M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18z', 'M12 6.8a5.2 5.2 0 1 1 0 10.4 5.2 5.2 0 0 1 0-10.4z', 'F:M10.8 9.6v4.8l4.2-2.4z'],
+  mode_usbdac:    ['M4.5 9h7.5a3 3 0 0 1 0 6H4.5a3 3 0 0 1 0-6z', 'M6.5 12h3.5', 'M16.2 9.5a3.8 3.8 0 0 1 0 5', 'M19 7a7.2 7.2 0 0 1 0 10'],
+  mode_transport: ['F:M6 10.2a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6z', 'M10.5 8.5a5 5 0 0 1 0 7', 'M14 6a8.5 8.5 0 0 1 0 12', 'M17.5 12h3.5', 'M19.2 9.8 21.4 12l-2.2 2.2'],
+  mode_btrx:      ['M10.5 7.5l8 8-4 3.8V4.7l4 3.8-8 8', 'M3 12h4.5', 'M5.5 9.6 7.9 12l-2.4 2.4'],
+  mode_airplay:   ['M4.5 15.2a9 9 0 0 1 15 0', 'M7.5 12.6a5.2 5.2 0 0 1 9 0', 'M12 14.5l4.4 5.5H7.6z'],
+  mode_transfer:  ['M7.5 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z', 'M9.5 11.2h5.2', 'M12.8 9.2l2 2-2 2', 'M14.7 15.5H9.5', 'M11.2 13.5l-2 2 2 2'],
+  usb:            ['M8 8h8a4 4 0 0 1 0 8H8a4 4 0 0 1 0-8z', 'M8.5 12h7'],
+  usb_charge:     ['M6.5 7.5h11a4.5 4.5 0 0 1 0 9h-11a4.5 4.5 0 0 1 0-9z', 'M12.6 9.3 10.5 12h3l-2.1 2.7'],
+  broadcast:      ['F:M12 10.2a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6z', 'M8.2 8.2a5.4 5.4 0 0 0 0 7.6', 'M15.8 8.2a5.4 5.4 0 0 1 0 7.6', 'M5.4 5.4a9.3 9.3 0 0 0 0 13.2', 'M18.6 5.4a9.3 9.3 0 0 1 0 13.2'],
+  bluetooth:      ['M7 7.5l10 9-5 4V3.5l5 4-10 9'],
+  airplay:        ['M6.5 17H5.5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-1', 'M12 14.2l4.6 5.8H7.4z'],
+  transfer:       ['M12 4v10.5', 'M8 10.5l4 4 4-4', 'M4.5 15v2.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V15'],
+  wifi:           ['M2.8 9.2a13.6 13.6 0 0 1 18.4 0', 'M5.8 12.4a9.2 9.2 0 0 1 12.4 0', 'M8.8 15.6a4.8 4.8 0 0 1 6.4 0', 'F:M12 17.6a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z'],
+  headphones:     ['M4 15v-3a8 8 0 0 1 16 0v3', 'M5.5 14h1a1.5 1.5 0 0 1 1.5 1.5v3.5a1.5 1.5 0 0 1-1.5 1.5h-1A1.5 1.5 0 0 1 4 19v-3.5A1.5 1.5 0 0 1 5.5 14z', 'M17.5 14h1a1.5 1.5 0 0 1 1.5 1.5v3.5a1.5 1.5 0 0 1-1.5 1.5h-1A1.5 1.5 0 0 1 16 19v-3.5a1.5 1.5 0 0 1 1.5-1.5z'],
+  chip:           ['M8.5 6h7A2.5 2.5 0 0 1 18 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 6 15.5v-7A2.5 2.5 0 0 1 8.5 6z', 'M9.5 3v3', 'M14.5 3v3', 'M9.5 18v3', 'M14.5 18v3', 'M3 9.5h3', 'M3 14.5h3', 'M18 9.5h3', 'M18 14.5h3'],
+  // settings
+  tune:           ['M4 7h9', 'M17 7h3', 'M4 17h3', 'M11 17h9', 'M15 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4z', 'M9 15a2 2 0 1 1 0 4 2 2 0 0 1 0-4z'],
+  eq:             ['M3 13c2.4 0 2.6-6.5 5-6.5s2.6 11 5 11 2.6-7.5 5-7.5c1.4 0 2 1.2 3 2.5'],
+  filter:         ['M3 8.5h6c3.4 0 4.2 7 8.5 7H21', 'M3 19.5h18'],
+  gain:           ['M3 13h3l2.6-6 3.8 11 3-8.5L17 13h4'],
+  gain_low:       ['M3 13.5c2.2-3 4.5-3 6.8 0s4.5 3 6.8 0c1.4-1.8 2.8-2.2 4.4-1.5', 'M4 18h16'],
+  gain_high:      ['M2.5 13h2.2l2.3-7.5 3.4 13.5 3.3-11 2.3 5h5.5', 'M19 4.2v3.6', 'M17.2 6h3.6'],
+  contrast: ['M12 3.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17z', 'F:M12 3.5a8.5 8.5 0 0 1 0 17z'],
+  sun:      ['M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z', 'M12 2.8v1.8', 'M12 19.4v1.8', 'M2.8 12h1.8', 'M19.4 12h1.8', 'M5.5 5.5l1.3 1.3', 'M17.2 17.2l1.3 1.3', 'M5.5 18.5l1.3-1.3', 'M17.2 6.8l1.3-1.3'],
+  moon:     ['M19.5 14.6A7.8 7.8 0 1 1 9.4 4.5a6.3 6.3 0 0 0 10.1 10.1z'],
+  battery:  ['M5.5 7h11a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3z', 'M22 10.5v3', 'F:M6.5 9.6h7a.9.9 0 0 1 .9.9v3a.9.9 0 0 1-.9.9h-7a.9.9 0 0 1-.9-.9v-3a.9.9 0 0 1 .9-.9z'],
+  power:    ['M12 3.5v8', 'M7.2 6.6a7.5 7.5 0 1 0 9.6 0'],
+  lock:     ['M7.5 10.5h9a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 5 18v-5a2.5 2.5 0 0 1 2.5-2.5z', 'M8 10.5V8a4 4 0 0 1 8 0v2.5', 'F:M12 14.3a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4z'],
+  timer:    ['M12 5.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15z', 'M12 9.5v3.5l2.3 1.6', 'M9.5 2.8h5'],
+  info:     ['M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18z', 'M12 11v5.5', 'F:M12 6.9a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z'],
+  games:    ['M7.8 7h8.4a5 5 0 0 1 4.85 6.2l-.9 3.6a2.4 2.4 0 0 1-4.1 1.1L14.4 16H9.6l-1.65 1.9a2.4 2.4 0 0 1-4.1-1.1l-.9-3.6A5 5 0 0 1 7.8 7z', 'M8.2 10v3.2', 'M6.6 11.6h3.2', 'F:M15.6 9.9a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9z', 'F:M17.4 12a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9z'],
+  apps:     ['M7.5 4.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z', 'M16.5 4.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z', 'M7.5 13.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z', 'M16.5 13.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z'],
+  // utility
+  back:     ['M14.5 5.5 8 12l6.5 6.5'],
+  chev:     ['M9.5 5.5 16 12l-6.5 6.5'],
+  up:       ['M5.5 14.5 12 8l6.5 6.5'],
+  down:     ['M5.5 9.5 12 16l6.5-6.5'],
+  check:    ['M5 12.5l4.5 4.5L19 7.5'],
+  close:    ['M6.5 6.5l11 11', 'M17.5 6.5l-11 11'],
+  plus:     ['M12 5v14', 'M5 12h14'],
+  search:   ['M11 4.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z', 'M16 16l4.5 4.5'],
+  more:     ['F:M6 10.6a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8z', 'F:M12 10.6a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8z', 'F:M18 10.6a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8z'],
+  rim:      ['M5 17.5A8.6 8.6 0 1 1 19 17.5', 'F:M19 15.6a1.9 1.9 0 1 1 0 3.8 1.9 1.9 0 0 1 0-3.8z'],
+  warning:  ['M10.4 4.6 3.3 17a1.8 1.8 0 0 0 1.6 2.7h14.2a1.8 1.8 0 0 0 1.6-2.7L13.6 4.6a1.8 1.8 0 0 0-3.2 0z', 'M12 9.5v4', 'F:M12 15.6a1.05 1.05 0 1 1 0 2.1 1.05 1.05 0 0 1 0-2.1z'],
+  // nature / brand
+  fjall:    ['M12 2.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19z', 'M4.8 16.5 9.4 10l3.1 4.2 2.2-2.7 4.5 5'],
+  pine:     ['M12 3l5 7h-3l4 6H6l4-6H7z', 'M12 16v5'],
+  pebble:   ['M6.5 8.5C8.5 5.5 15 4.6 18 7.2s3 8.4-.5 10.6-11 2.7-12.6-1.1S4.8 11 6.5 8.5z'],
+  snow:     ['M12 3v18', 'M4.2 7.5l15.6 9', 'M4.2 16.5l15.6-9', 'M9.8 4.8 12 7l2.2-2.2', 'M9.8 19.2 12 17l2.2 2.2']
+};
+function ic(name, size = 24, sw = TOKENS.stroke.icon) {
+  const parts = ICONS[name] || ICONS.info;
+  const body = parts.map(p => p.startsWith("F:")
+    ? `<path d="${p.slice(2)}" fill="currentColor" stroke="none"/>`
+    : `<path d="${p}"/>`).join("");
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   3 · DEVICE PRIMITIVES — shared by every screen
+   ════════════════════════════════════════════════════════════════════ */
+const CX = 180;
+const pt = (deg, r) => [CX + r * Math.sin(deg * Math.PI / 180), CX - r * Math.cos(deg * Math.PI / 180)];
+function arcPath(a0, a1, r) {
+  const [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r);
+  const large = Math.abs(a1 - a0) > 180 ? 1 : 0, sweep = a1 > a0 ? 1 : 0;
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${large} ${sweep} ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+/* Rim arc: track + value. a0→a1 degrees clockwise from 12 o'clock. */
+function rimArc({ a0, a1, v = 0, color = "var(--moss)", r = 168, w = 4, track = true, dashed = false, knob = true }) {
+  const av = a0 + (a1 - a0) * v;
+  let s = `<svg class="abs fill" width="360" height="360" viewBox="0 0 360 360" style="pointer-events:none">`;
+  if (track) s += `<path d="${arcPath(a0, a1, r)}" stroke="var(--s3)" stroke-width="${w}" fill="none" stroke-linecap="round" ${dashed ? 'stroke-dasharray="1 7"' : ''}/>`;
+  if (v > 0) s += `<path d="${arcPath(a0, av, r)}" stroke="${color}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
+  if (knob && v > 0) { const [x, y] = pt(av, r); s += `<circle cx="${x}" cy="${y}" r="${w + 2.5}" fill="${color}" stroke="var(--bg)" stroke-width="2.5"/>`; }
+  return s + `</svg>`;
+}
+/* Scroll indicator on the right rim (lists). */
+const scrollRim = (pos = .3, len = .22) => rimArc({ a0: 52, a1: 128, v: 0, track: true, w: 3, r: 170 }) +
+  rimArc({ a0: 52 + 76 * pos, a1: 52 + 76 * (pos + len), v: 1, w: 3, r: 170, track: false, knob: false });
+const status = (extra = "") => `<div class="abs sb num">${extra || "21:45"}<i></i>${ic("battery", 16)}<span>82%</span></div>`;
+const hint = (t, icon) => `<div class="abs hint">${icon ? ic(icon, 12, 2) : ""}${t}</div>`;
+const grab = () => `<div class="abs grab"></div>`;
+const backBtn = () => `<div class="abs" style="left:16px; top:162px; width:36px; height:36px; display:grid; place-items:center; color:var(--t3)">${ic("back", 20)}</div>`;
+const header = (over, title, y = 46) => `<div class="abs ctr" style="top:${y}px">${over ? `<div class="t-over">${over}</div>` : ""}${title ? `<div class="t-head" style="margin-top:4px">${title}</div>` : ""}</div>`;
+
+/* Fisheye Rim List: rows = [{icon,title,sub,value,sel,...}], focused row index */
+function rimList(rows, focus, { top = 84, gap = 8, h = 52, compactNeighbours = true, iconTint } = {}) {
+  const widths = [210, 250, 284, 250, 210, 180];
+  let html = `<div class="list" style="top:${top}px; gap:${gap}px">`;
+  rows.forEach((r, i) => {
+    const d = Math.abs(i - focus);
+    const w = r.w || (d === 0 ? 284 : d === 1 ? 258 : 226);
+    const op = d === 0 ? 1 : d === 1 ? .92 : .45;
+    const cls = ["row", i === focus ? "sel" : "", d >= 1 && compactNeighbours ? "compact" : "", r.cls || ""].join(" ");
+    html += `<div class="${cls}" style="width:${w}px; opacity:${op}">
+      ${r.lead !== undefined ? r.lead : (r.icon ? `<div class="ri" style="${r.tint ? `color:${r.tint};background:color-mix(in srgb, ${r.tint} 16%, transparent)` : ""}">${ic(r.icon, 17)}</div>` : "")}
+      <div class="rt"><b>${r.title}</b>${r.sub && (d === 0 || r.alwaysSub) ? `<em>${r.sub}</em>` : ""}</div>
+      ${r.value !== undefined ? `<div class="rv">${r.value}</div>` : ""}
+    </div>`;
+  });
+  return html + `</div>`;
+}
+
+/* ── Procedural album art (nature abstracts, placeholder for real covers) ── */
+function art(kind, size, { disc = false, spin = false } = {}) {
+  const P = {
+    fjord: `<rect width="100" height="100" fill="#20313A"/><circle cx="68" cy="34" r="11" fill="#E2A66A" opacity=".9"/>
+      <path d="M0 58 18 40 30 50 46 30 64 52 78 42 100 58V100H0z" fill="#3E5A68"/>
+      <path d="M0 68 22 54 38 64 58 48 76 62 100 54V100H0z" fill="#2C4450"/>
+      <rect y="74" width="100" height="26" fill="#18262D"/><path d="M8 82h30M52 88h36M20 94h22" stroke="#8FB3C9" stroke-width="1.2" opacity=".5"/>`,
+    rings: `<rect width="100" height="100" fill="#D8CFBD"/>${[46,38,31,25,19,13,8,4].map((r,i)=>`<ellipse cx="${52 - i*.6}" cy="${50 + i*.4}" rx="${r+2}" ry="${r}" fill="none" stroke="#7A6A4E" stroke-width="${i%2?1.4:2.4}" opacity="${.35 + i*.07}"/>`).join("")}<path d="M52 50 92 28" stroke="#5C4F38" stroke-width="1.2" opacity=".5"/>`,
+    aurora: `<rect width="100" height="100" fill="#121A1F"/><path d="M-10 60C20 20 50 70 110 26V44C60 84 30 34-10 74z" fill="#8DB596" opacity=".55"/><path d="M-10 50C30 14 58 60 110 16V26C60 66 30 26-10 62z" fill="#B7A0C6" opacity=".45"/>${[[12,14],[30,8],[78,12],[88,40],[60,6],[20,30]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r=".9" fill="#ECEEE8"/>`).join("")}<path d="M0 86 30 76 54 84 80 72 100 80V100H0z" fill="#0B1013"/>`,
+    moss: `<rect width="100" height="100" fill="#3D5443"/>${Array.from({length:26},(_,i)=>{const x=(i*37)%100,y=(i*53)%100,r=6+(i*7)%14;return `<circle cx="${x}" cy="${y}" r="${r}" fill="${["#8DB596","#6E9479","#56785F","#A9C4AE"][i%4]}" opacity=".55"/>`}).join("")}<circle cx="50" cy="50" r="16" fill="#ECEEE8" opacity=".9"/><text x="50" y="54.5" text-anchor="middle" font-family="Inter,sans-serif" font-weight="700" font-size="12" fill="#3D5443">M</text>`,
+    berry: `<rect width="100" height="100" fill="#E8DCC6"/><circle cx="50" cy="50" r="28" fill="#E2A66A"/>${Array.from({length:12},(_,i)=>{const a=i*30*Math.PI/180;return `<circle cx="${50+16*Math.cos(a)}" cy="${50+16*Math.sin(a)}" r="6.5" fill="#D08B4C"/>`}).join("")}<circle cx="50" cy="50" r="8" fill="#B8733A"/>`,
+    snow: `<rect width="100" height="100" fill="#ECEEE8"/><path d="M0 70 30 40 46 56 64 34 100 70V100H0z" fill="#A2ABA5"/><path d="M30 40 38 48 34 50 46 56 40 44z M64 34 72 44 66 44 74 52 60 42z" fill="#fff"/><rect y="78" width="100" height="22" fill="#6F7974"/>`
+  };
+  const id = "a" + Math.random().toString(36).slice(2, 8);
+  const grooves = disc ? `<g fill="none" stroke="#000" opacity=".22">${[47,43,39.5,36,33,30].map((r,i)=>`<circle cx="50" cy="50" r="${r}" stroke-width="${i%2?.35:.6}"/>`).join("")}</g>
+    <circle cx="50" cy="50" r="15" fill="none" stroke="#fff" stroke-opacity=".2" stroke-width=".5"/>
+    <circle cx="50" cy="50" r="3.2" fill="var(--bg)" stroke="#fff" stroke-opacity=".3" stroke-width=".5"/>
+    <path d="M18 24A40 40 0 0 1 38 11" stroke="#fff" stroke-opacity=".22" stroke-width="5" stroke-linecap="round" fill="none"/>` : "";
+  return `<div class="art ${spin ? "spin" : ""}" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100"><defs><clipPath id="${id}"><circle cx="50" cy="50" r="50"/></clipPath></defs><g clip-path="url(#${id})">${P[kind] || P.fjord}${grooves}</g></svg></div>`;
+}
+
+/* ── App registry (pebbles) ── */
+const APPS = [
+  { id: "np",   name: "Now Playing",     icon: "rings",  tint: "moss",    sub: "Teardrop · Massive Attack" },
+  { id: "lib",  name: "Library",         icon: "note",   tint: "fjord",   sub: "1,428 tracks · 118 artists" },
+  { id: "files",name: "Files",           icon: "folder", tint: "birch",   sub: "microSD · 482 GB free" },
+  { id: "modes",name: "Modes",           icon: "modes",  tint: "heather", sub: "Player · USB DAC · BT RX" },
+  { id: "set",  name: "Settings",        icon: "tune",   tint: "t2",      sub: "Audio · Display · Power" },
+  { id: "games",name: "Arcade",          icon: "games",  tint: "berry",   sub: "3 mini-games" }
+];
+function pebble(app, size = 64, { ring = false, label = false } = {}) {
+  const t = `var(--${app.tint})`;
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div class="pebble" style="width:${size}px;height:${size}px;border-radius:50%;color:${t};
+      background: radial-gradient(120% 120% at 30% 25%, color-mix(in srgb, ${t} 26%, var(--s1)), color-mix(in srgb, ${t} 12%, var(--s1)));
+      box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent), inset 0 0 0 1px color-mix(in srgb, ${t} 22%, transparent)${ring ? `, 0 0 0 4px var(--bg), 0 0 0 5.5px var(--moss)` : ""}">
+      ${ic(app.icon, Math.round(size * .42), 1.75)}
+    </div>${label ? `<div class="t-cap" style="color:var(--t2)">${app.name}</div>` : ""}</div>`;
+}
+</script>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   4 · SCREENS — composed only from primitives above
+   ════════════════════════════════════════════════════════════════════ */
+const scrim = () => `<div class="abs scrim"></div>`;
+
+function npBase({ dim = false } = {}) {
+  return `
+  <div class="abs fill">${art("fjord", 360, { disc: true, spin: !dim })}</div>
+  <div class="abs fill" style="pointer-events:none; background:
+    radial-gradient(circle at 50% 50%, rgba(18,22,21,.38) 0%, rgba(18,22,21,.15) 14%, transparent 22%, transparent 72%, rgba(18,22,21,.76) 100%)"></div>
+  ${dim ? "" : `<!-- Inner vinyl circle progress & seek ring (r = 38px, 0° = 0% to 360° = 100%) -->
+  <svg class="abs fill" width="360" height="360" viewBox="0 0 360 360" style="pointer-events:none">
+    <circle cx="180" cy="180" r="38" fill="rgba(18,22,21,.45)" stroke="rgba(236,238,232,.22)" stroke-width="3"/>
+    <path d="${arcPath(0, 360 * .41, 38)}" fill="none" stroke="var(--moss)" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="${pt(360 * .41, 38)[0]}" cy="${pt(360 * .41, 38)[1]}" r="4.5" fill="var(--moss)" stroke="var(--bg)" stroke-width="1.8"/>
+    <circle cx="180" cy="180" r="6" fill="var(--bg)" stroke="rgba(236,238,232,.35)" stroke-width="1.5"/>
+  </svg>`}
+  ${rimArc({ a0: 145, a1: 35, v: .82, w: 4, r: 166 })}
+  <div class="abs t-cap num" style="right:24px; top:172px; color:var(--moss)">82</div>
+  ${grab()}
+  ${dim ? "" : `<div class="abs ctr" style="bottom:16px; color:#ECEEE8; opacity:.85">${ic("up", 20, 2.2)}</div>`}`;
+}
+
+function modeScreen(m) {
+  return `
+  <div class="abs ctr" style="top:36px"><div class="t-over">Mode · ${m.name}</div></div>
+  <div class="abs" style="left:146px; top:62px">
+    ${m.waiting ? `<div class="abs breathe" style="left:-14px; top:-14px; width:96px; height:96px; border-radius:50%; border:1.5px solid var(--moss)"></div>` : ""}
+    <div class="pebble" style="width:68px;height:68px;border-radius:50%;background:color-mix(in srgb, var(--moss) 18%, var(--s1)); color:var(--moss); ${m.live ? "box-shadow:0 0 0 4px var(--bg), 0 0 0 5.5px var(--moss)" : ""}">${ic(m.icon, 30)}</div>
+  </div>
+  <div class="abs ctr" style="top:146px"><span class="chip ${m.stateCls || "m"}">● ${m.state}</span></div>
+  <div class="abs ctr" style="top:176px"><div><span class="${m.heroSmall ? "t-title" : "t-hero"} num">${m.hero}</span>${m.unit ? `<span class="t-head c2" style="margin-left:6px">${m.unit}</span>` : ""}</div>
+    <div class="t-sub" style="margin-top:6px">${m.sub}</div></div>
+  <div class="list" style="top:248px">
+    <div class="row compact" style="width:252px"><div class="ri">${ic(m.rowIcon, 16)}</div><div class="rt"><b class="${m.train ? "train" : ""}" style="font-size:13.5px">${m.row}</b></div><div class="rv">${m.rowVal}</div></div>
+  </div>
+  <div class="abs ctr" style="top:302px"><span class="pill sm">${ic("headphones", 13)} ${m.out}</span></div>`;
+}
+const MODES = [
+  { name: "Player", icon: "mode_player", state: "Active", live: true, hero: "Ready", heroSmall: true, sub: "microSD · 1,428 tracks", rowIcon: "play", row: "Resume “Teardrop”", rowVal: ic("chev", 16), out: "4.4 mm BAL · High gain" },
+  { name: "USB DAC", icon: "mode_usbdac", state: "Locked · bit-perfect", live: true, hero: "384", unit: "kHz", sub: "32-bit · iPhone 16 Pro · UAC 2.0", rowIcon: "usb_charge", row: "Draw power from host", train: true, rowVal: `<span class="tog"></span>`, out: "4.4 mm BAL · Coax on" },
+  { name: "Transport", icon: "mode_transport", state: "Streaming", live: true, hero: "DSD128", heroSmall: false, sub: "Native · USB-C → external DAC", rowIcon: "chip", row: "Topping D90 SE", rowVal: `<span class="chip">USB</span>`, out: "Digital out only" },
+  { name: "Bluetooth RX", icon: "mode_btrx", state: "Connected", stateCls: "f", live: true, hero: "LDAC", sub: "990 kbps · 24-bit / 96 kHz", rowIcon: "bluetooth", row: "Emilio’s iPhone", rowVal: `<span class="chip f">-52 dBm</span>`, out: "4.4 mm BAL · Low gain" },
+  { name: "AirPlay", icon: "mode_airplay", state: "Waiting for host", stateCls: "", waiting: true, hero: "Visible as “DISC”", heroSmall: true, sub: "Wi-Fi · Studio 5G · 2.4 GHz", rowIcon: "wifi", row: "Studio 5G", rowVal: `<span class="chip f">Strong</span>`, out: "4.4 mm BAL · Coax on" },
+  { name: "File Transfer", icon: "mode_transfer", state: "Do not unplug", stateCls: "b", live: true, hero: "48", unit: "MB/s", sub: "Card reader · exFAT · Mac Studio", rowIcon: "sdcard", row: "482 GB free of 1 TB", rowVal: `<span class="chip">52%</span>`, out: "Audio paused" }
+];
+
+const tracks = [
+  { n: "01", t: "Angel", d: "6:18" }, { n: "02", t: "Risingson", d: "4:58" }, { n: "03", t: "Teardrop", d: "5:30", playing: true },
+  { n: "04", t: "Inertia Creeps", d: "5:56" }, { n: "05", t: "Exchange", d: "4:11" }
+];
+const trackRow = (x) => ({ lead: `<div class="ri num" style="background:transparent; font-size:12px; font-weight:600; color:${x.playing ? "var(--moss)" : "var(--t3)"}">${x.n}</div>`, title: x.t, sub: x.playing ? `<span style="display:inline-flex;gap:6px;align-items:center"><span class="eqbars"><i></i><i></i><i></i><i></i></span> Playing</span>` : "", value: `<span class="num">${x.d}</span>` });
+
+const fileRows = [
+  { icon: "back", title: "..", sub: "Music", value: "" },
+  { icon: "folder", title: "Massive Attack", sub: "4 albums", value: ic("chev", 16) },
+  { icon: "fileaudio", title: "03 Teardrop.flac", sub: "48.2 MB · FLAC 24/96", value: `<span class="chip">5:30</span>` },
+  { icon: "fileaudio", title: "04 Inertia Creeps.flac", sub: "52.0 MB", value: "" },
+  { icon: "folder", title: "Portishead", sub: "3 albums", value: "" }
+];
+
+function eqScreen() {
+  const bands = [["31", .52], ["62", .40], ["125", .32], ["250", .55], ["500", .62], ["1k", .58], ["2k", .44], ["4k", .38], ["8k", .46], ["16k", .54]];
+  const pts = bands.map((b, i) => [64 + i * 25.8, 104 + b[1] * 70]);
+  const curve = "M" + pts.map(p => p.join(" ")).join(" L");
+  return `${header("Parametric EQ", "")}
+  <div class="abs ctr" style="top:62px"><div class="seg"><span class="on">Acoustic</span><span>Vocal</span><span>Flat</span><span>Custom</span></div></div>
+  <svg class="abs fill" width="360" height="360" viewBox="0 0 360 360">
+    <rect x="52" y="102" width="256" height="76" rx="16" fill="var(--s1)"/>
+    <path d="M60 140H300" stroke="var(--line)" stroke-dasharray="2 4"/>
+    <path d="${curve} L296 178 L64 178Z" fill="var(--moss)" opacity=".12"/>
+    <path d="${curve}" fill="none" stroke="var(--moss)" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${pts[2][0]}" cy="${pts[2][1]}" r="5" fill="var(--bg)" stroke="var(--moss)" stroke-width="2"/>
+    <text x="64" y="118" font-size="9" fill="var(--t3)" font-family="Inter" font-weight="600">+6</text><text x="64" y="173" font-size="9" fill="var(--t3)" font-family="Inter" font-weight="600">−6</text>
+    ${bands.map((b, i) => { const x = 64 + i * 25.8, y = 196 + b[1] * 64, on = i === 2;
+      return `<path d="M${x} 196V260" stroke="var(--s3)" stroke-width="3" stroke-linecap="round"/>${on ? `<path d="M${x} ${y}V260" stroke="var(--moss)" stroke-width="3" stroke-linecap="round"/>` : ""}
+      <circle cx="${x}" cy="${y}" r="${on ? 7 : 5}" fill="${on ? "var(--moss)" : "var(--t2)"}" stroke="var(--bg)" stroke-width="2"/>
+      <text x="${x}" y="278" text-anchor="middle" font-size="9.5" font-weight="600" font-family="Inter" fill="${on ? "var(--moss)" : "var(--t3)"}">${b[0]}</text>`; }).join("")}
+  </svg>
+  <div class="abs ctr" style="top:294px"><span class="pill num" style="color:var(--t1)">125 Hz · <span class="cm">+2.5 dB</span> · Q 1.41</span></div>`;
+}
+
+function displayScreen() {
+  return `${header("Display", "")}
+  <div class="list" style="top:66px; gap:8px">
+    <div class="row sel" style="width:276px; height:64px; flex-direction:column; align-items:stretch; justify-content:center; gap:8px; padding:0 16px">
+      <div style="display:flex; justify-content:space-between; align-items:center"><b style="font-size:14px; display:flex; gap:8px; align-items:center"><span class="cm">${ic("sun", 16)}</span>Brightness</b><span class="num cm" style="font-size:13px; font-weight:600">70%</span></div>
+      <div style="height:6px; border-radius:6px; background:var(--s3); position:relative"><div style="position:absolute; left:0; top:0; bottom:0; width:70%; border-radius:6px; background:var(--moss)"></div><div style="position:absolute; left:calc(70% - 7px); top:-4px; width:14px; height:14px; border-radius:50%; background:var(--t1); box-shadow:0 0 0 3px var(--s2)"></div></div>
+    </div>
+    <div class="row compact" style="width:268px"><div class="ri">${ic("contrast", 16)}</div><div class="rt"><b style="font-size:14px">Mode</b></div><div class="seg" style="padding:2px"><span class="on" style="height:22px; font-size:11px">Night</span><span style="height:22px; font-size:11px">Day</span><span style="height:22px; font-size:11px">Auto</span></div></div>
+    <div class="row compact" style="width:256px"><div class="ri">${ic("leaf", 16)}</div><div class="rt"><b style="font-size:14px">Accent</b></div><div style="display:flex; gap:6px">${["moss", "fjord", "berry", "birch"].map((c, i) => `<span style="width:18px;height:18px;border-radius:50%;background:var(--${c}); ${i === 0 ? "box-shadow:0 0 0 2px var(--s1), 0 0 0 3.5px var(--t1)" : ""}"></span>`).join("")}</div></div>
+    <div class="row compact" style="width:236px; opacity:.92"><div class="ri">${ic("rings", 16)}</div><div class="rt"><b style="font-size:14px">Spinning disc</b></div><span class="tog on"></span></div>
+    <div class="row compact" style="width:200px; opacity:.45"><div class="ri">${ic("timer", 16)}</div><div class="rt"><b style="font-size:14px">Timeout</b></div><div class="rv">30 s</div></div>
+  </div>${scrollRim(.15, .3)}`;
+}
+
+function pongScreen() {
+  return `<svg class="abs fill" width="360" height="360" viewBox="0 0 360 360">
+    <circle cx="180" cy="180" r="150" fill="none" stroke="var(--s2)" stroke-width="1.5" stroke-dasharray="2 6"/>
+    <circle cx="180" cy="180" r="34" fill="none" stroke="var(--s2)" stroke-width="1.5"/>
+    <path d="${arcPath(182, 222, 160)}" stroke="var(--moss)" stroke-width="10" stroke-linecap="round" fill="none"/>
+    <path d="M150 220 L176 186 L206 132" stroke="var(--berry)" stroke-width="2" stroke-dasharray="1 6" stroke-linecap="round" fill="none" opacity=".7"/>
+    <circle cx="206" cy="132" r="8" fill="var(--berry)"/>
+  </svg>
+  <div class="abs ctr" style="top:54px"><div class="t-over">Stage 07</div></div>
+  <div class="abs ctr" style="top:164px"><span class="t-head num c3">18,450</span></div>
+  <div class="abs ctr" style="top:292px"><span class="chip b">× 3 combo</span></div>`;
+}
+
+function g2048Screen() {
+  const vals = [[2, 0, 4, 8], [0, 16, 32, 4], [64, 128, 256, 2], [8, 512, 1024, 16]];
+  const st = v => ({ 0: ["var(--s1)", "transparent"], 2: ["var(--s2)", "var(--t2)"], 4: ["var(--s3)", "var(--t1)"], 8: ["color-mix(in srgb,var(--birch) 35%,var(--s1))", "var(--t1)"], 16: ["var(--birch)", "var(--onAccent)"],
+    32: ["color-mix(in srgb,var(--moss) 40%,var(--s1))", "var(--t1)"], 64: ["var(--moss)", "var(--onAccent)"], 128: ["var(--fjord)", "var(--onAccent)"], 256: ["color-mix(in srgb,var(--berry) 55%,var(--s1))", "var(--t1)"], 512: ["var(--berry)", "var(--onAccent)"], 1024: ["var(--heather)", "var(--onAccent)"] })[v];
+  return `<div class="abs ctr" style="top:30px"><div class="t-cap">Score</div><div class="t-head num cb">16,384</div></div>
+  <div class="abs" style="left:78px; top:78px; width:204px; height:204px; display:grid; grid-template-columns:repeat(4,1fr); gap:6px">
+    ${vals.flat().map(v => { const [b, c] = st(v); return `<div style="border-radius:12px; background:${b}; color:${c}; display:grid; place-items:center; font-weight:700; font-size:${v > 512 ? 13 : 16}px" class="num">${v || ""}</div>`; }).join("")}
+  </div>${hint("Trace rim to tilt", "rim")}`;
+}
+
+function boomScreen() {
+  const cs = [[120, 130, 34, "moss"], [214, 112, 22, "fjord"], [236, 210, 40, "berry"], [150, 236, 18, "heather"], [190, 176, 12, "birch"]];
+  const dots = [[96, 200], [262, 150], [180, 92], [130, 284], [250, 270], [80, 150], [290, 210]];
+  return `<svg class="abs fill" width="360" height="360" viewBox="0 0 360 360">
+    ${cs.map(([x, y, r, c]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="var(--${c})" opacity=".22"/><circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="var(--${c})" stroke-width="1.5" opacity=".8"/>`).join("")}
+    ${dots.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="4" fill="var(--${["moss", "fjord", "berry", "birch"][i % 4]})"/>`).join("")}
+  </svg>
+  <div class="abs ctr" style="top:36px"><div class="t-over">Level 12 · 18 / 24</div></div>
+  ${hint("Tap to start a chain")}`;
+}
+
+function horizon() {
+  return `<svg class="abs" style="left:0; bottom:0" width="360" height="130" viewBox="0 0 360 130">
+    <path d="M0 70 54 34 92 58 140 18 196 62 236 40 300 76 360 50V130H0z" fill="var(--s1)"/>
+    <path d="M140 18 152 28 146 30 160 40 148 36z M54 34 62 40 58 42z" fill="var(--s3)" opacity=".6"/>
+    <path d="M0 96 70 70 130 88 210 64 290 92 360 78V130H0z" fill="var(--s2)"/>
+    ${[[40,82],[58,78],[300,88],[318,84],[228,70]].map(([x,y]) => `<path d="M${x} ${y-14} ${x+5} ${y-4}h-3l4 6h-12l4-6h-3z" fill="var(--s3)"/>`).join("")}
+  </svg>`;
+}
+
+function carouselScreen(focus) {
+  const a = APPS[focus], prev = APPS[(focus + 5) % 6], next = APPS[(focus + 1) % 6], p2 = APPS[(focus + 4) % 6], n2 = APPS[(focus + 2) % 6];
+  const pos = (deg, r, size, app, op) => { const [x, y] = pt(deg, r); return `<div class="abs" style="left:${x - size / 2}px; top:${y - size / 2 - 40}px; opacity:${op}">${pebble(app, size)}</div>`; };
+  const pills = { np: `<span class="pill on">${ic("pause", 13)} Pause</span><span class="pill">${ic("next", 13)} Next</span>`,
+                  lib: `<span class="pill">Artists</span><span class="pill on">Albums</span><span class="pill">Songs</span>` }[a.id] || `<span class="pill on">Open</span>`;
+  return `${status()}
+    ${pos(-62, 136, 44, prev, .9)}${pos(62, 136, 44, next, .9)}${pos(-98, 140, 32, p2, .45)}${pos(98, 140, 32, n2, .45)}
+    <div class="abs" style="left:128px; top:66px">${pebble(a, 104, { ring: true })}</div>
+    <div class="abs ctr" style="top:192px"><div class="t-title">${a.name}</div><div class="t-sub" style="margin-top:4px">${a.sub}</div></div>
+    <div class="abs ctr" style="top:250px; flex-direction:row; justify-content:center; gap:6px">${pills}</div>
+    <div class="abs ctr" style="top:300px; flex-direction:row; justify-content:center; gap:5px">${APPS.map((_, i) => `<i style="display:block; height:5px; width:${i === focus ? 16 : 5}px; border-radius:5px; background:${i === focus ? "var(--moss)" : "var(--s3)"}"></i>`).join("")}</div>
+    ${hint("Trace rim · tap to open")}`;
+}
+
+const SCREENS = [
+  /* ── CORE ── */
+  { g: "core", id: "SYS-00", t: "Boot", d: "Fjäll mark breathes for at most 1.2 s while the player daemon starts.", fn: () =>
+    `<div class="abs ctr" style="top:130px"><div class="breathe cm">${ic("fjall", 72, 1.4)}</div><div class="t-over" style="margin-top:18px; letter-spacing:.3em">DialOS</div></div>${horizon()}` },
+  { g: "core", id: "LCK-01", t: "Lock · idle", d: "Airy 64/300 clock above a quiet mountain horizon. Swipe up anywhere to unlock.", fn: () =>
+    `<div class="abs ctr" style="top:36px; flex-direction:row; justify-content:center; gap:6px; color:var(--t2); font-size:12px; font-weight:600">${ic("battery", 16)} 82%</div>
+     <div class="abs ctr" style="top:86px"><div class="t-over">Tuesday · 22 Oct</div><div class="t-display num" style="margin-top:12px">21:45</div><div class="t-sub" style="margin-top:12px">Nothing playing</div></div>
+     ${horizon()}${hint("Swipe up to unlock", "up")}` },
+  { g: "core", id: "LCK-02", t: "Lock · playing (Full-Bleed)", d: "360×360 full-bleed spinning cover with outer rim progress arc, floating transparent track metadata, and three transport controls.", fn: () =>
+    `<div class="abs fill">${art("fjord", 360, { disc: true, spin: true })}</div>
+     <div class="abs fill" style="pointer-events:none; background:
+       radial-gradient(circle at 50% 42%, transparent 44%, rgba(18,22,21,.52) 76%, rgba(18,22,21,.88) 100%),
+       linear-gradient(180deg, rgba(18,22,21,.55) 0%, transparent 22%, transparent 50%, rgba(18,22,21,.82) 78%, rgba(18,22,21,.95) 100%)"></div>
+     ${rimArc({ a0: -140, a1: 140, v: .41, w: 3.5, r: 168 })}
+     <div class="abs sb num" style="color:#ECEEE8">21:45<i></i>${ic("battery", 16)}<span>82%</span></div>
+     <div class="abs ctr" style="top:212px; text-shadow:0 2px 12px rgba(0,0,0,.65)">
+       <div class="t-head" style="color:#ECEEE8">Teardrop</div>
+       <div class="t-sub" style="margin-top:3px; color:rgba(236,238,232,.78)">Massive Attack</div>
+     </div>
+     <div class="abs ctr" style="top:274px; flex-direction:row; justify-content:center; gap:22px; align-items:center">
+       <span style="color:#ECEEE8; opacity:.85">${ic("prev", 22)}</span><span class="rb"><span class="o pri" style="width:48px;height:48px">${ic("pause", 20)}</span></span><span style="color:#ECEEE8; opacity:.85">${ic("next", 22)}</span>
+     </div>
+     <div class="abs hint" style="color:#ECEEE8; opacity:.75">${ic("up", 12, 2)}Swipe up to unlock</div>` },
+  { g: "core", id: "HOM-01", t: "Home · carousel", d: "Focused app pebble in the core with a Moss focus ring. Neighbours sit on the arc and fade with distance.", fn: () => carouselScreen(0) },
+  { g: "core", id: "HOM-02", t: "Home · Library focused", d: "Same template, different data: the pills change per app and the layout stays fixed.", fn: () => carouselScreen(1) },
+  { g: "core", id: "HOM-03", t: "App wheel", d: "All six apps at 60° intervals. Long-press the centre on Home to open it. The rim arc shows which app is focused.", fn: () =>
+    `${APPS.map((a, i) => { const [x, y] = pt(i * 60, 110); return `<div class="abs" style="left:${x - 30}px; top:${y - 30}px">${pebble(a, 60, { ring: i === 0 })}</div>`; }).join("")}
+     ${rimArc({ a0: -16, a1: 16, v: 1, track: false, knob: false, w: 4, r: 170 })}
+     <div class="abs ctr" style="top:160px"><div class="t-head">Now Playing</div><div class="t-cap" style="margin-top:4px">Tap to open</div></div>` },
+  { g: "core", id: "CC-01", t: "Control Center · Icon Pucks", d: "Icon-only 3×2 puck grid: lit = ON, unlit = OFF. Tap toggles state (Gain swaps between Low/High icons; USB Charge lights up). Hold Wi-Fi, Bluetooth, or Mode to open its menu.", fn: () => {
+    const puck = (icon, tone) => {
+      const lit = !!tone;
+      const c = tone ? `var(--${tone})` : "var(--t3)";
+      const bg = tone ? `color-mix(in srgb, var(--${tone}) 18%, var(--s1))` : "var(--s1)";
+      const ring = tone ? `box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--${tone}) 75%, transparent)` : "box-shadow: inset 0 0 0 1px var(--line)";
+      return `<div style="width:66px; height:66px; border-radius:50%; display:grid; place-items:center; background:${bg}; color:${c}; ${ring}">${ic(icon, 26)}</div>`;
+    };
+    return `${status("21:45")}
+     ${rimArc({ a0: 325, a1: 215, v: .7, color: "var(--birch)", r: 166 })}${rimArc({ a0: 145, a1: 35, v: .82, r: 166 })}
+     <div class="abs" style="left:22px; top:170px; color:var(--birch)">${ic("sun", 18)}</div><div class="abs cm" style="right:22px; top:170px">${ic("volume", 18)}</div>
+     <div class="abs" style="left:60px; top:98px; width:240px; display:grid; grid-template-columns:repeat(3, 66px); justify-content:space-between; row-gap:22px">
+       ${puck("wifi", "fjord")}
+       ${puck("bluetooth", "fjord")}
+       ${puck("mode_player", "moss")}
+       ${puck("gain_high", "berry")}
+       ${puck("usb_charge", null)}
+       ${puck("lock", null)}
+     </div>
+     ${hint("Tap · toggle   Hold · menu")}`;
+  } },
+  { g: "core", id: "CC-02", t: "Touch lock shield", d: "Prevents pocket touches. Holding the centre fills the ring (600 ms), then the screen unlocks.", fn: () =>
+    `${status()}
+     <svg class="abs fill" width="360" height="360" viewBox="0 0 360 360"><circle cx="180" cy="166" r="52" fill="var(--s1)"/><circle cx="180" cy="166" r="52" fill="none" stroke="var(--s3)" stroke-width="3"/><path d="${arcPath(0, 150, 52).replace(/A52/, "A52").replace(/^M[\d.]+ [\d.]+/, m => m)}" transform="translate(0,-14)" fill="none" stroke="var(--moss)" stroke-width="3" stroke-linecap="round"/></svg>
+     <div class="abs ctr" style="top:146px; color:var(--moss)">${ic("lock", 40)}</div>
+     <div class="abs ctr" style="top:236px"><div class="t-head">Screen locked</div><div class="t-sub" style="margin-top:4px">Hold the centre to unlock</div></div>` },
+
+  /* ── NOW PLAYING ── */
+  { g: "np", id: "NP-01", t: "Now Playing · Pure Vinyl", d: "Zero text and no left-side seek bar. The inner vinyl circle (r = 38 px) is the single progress & seek ring (0° = 0% → 359° = 99%): slide the inner ring directly OR hold & turn the vinyl to seek. 1 touch = Quick Actions; 2× touch = play/pause.", fn: () => npBase() },
+  { g: "np", id: "NP-02", t: "Quick actions · Bottom Arc", d: "Opened with 1 touch (1 touch again closes). Shows the Menu Title at top, floating transparent Song Title / Artist / Album in the centre, and 4 action pucks (Heart, Shuffle, Playlist, Lyrics) arranged along the bottom arc.", fn: () => {
+    const arcBtns = [
+      [234, "heart", true],
+      [198, "shuffle", false],
+      [162, "playlist", false],
+      [126, "lyrics", false]
+    ].map(([deg, icon, on]) => {
+      const [x, y] = pt(deg, 118);
+      return `<div class="abs rb" style="left:${x - 26}px; top:${y - 26}px"><div class="o ${on ? "on" : ""}">${ic(icon, 22)}</div></div>`;
+    }).join("");
+    return `${npBase({ dim: true })}${scrim()}
+     <div class="abs ctr" style="top:46px"><div class="t-over">Quick actions</div></div>
+     <div class="abs ctr" style="top:106px; padding:0 36px; text-shadow:0 2px 14px rgba(0,0,0,.55)">
+       <div class="t-title">Teardrop</div>
+       <div class="t-sub" style="margin-top:5px; color:var(--moss); font-weight:600">Massive Attack</div>
+       <div class="t-sub" style="margin-top:3px; font-size:12px">Mezzanine · 1998</div>
+     </div>
+     ${arcBtns}`;
+  } },
+  { g: "np", id: "NP-03", t: "Synced lyrics", d: "Layered over the full-bleed cover with a 72% scrim. The current line is Title / text-1, with the sung portion filled in Moss.", fn: () =>
+    `<div class="abs fill">${art("fjord", 360, { disc: true, spin: false })}</div>${scrim()}
+     ${rimArc({ a0: 145, a1: 35, v: .82, w: 4, r: 166 })}
+     <div class="abs ctr" style="top:38px; flex-direction:row; justify-content:center; gap:10px; align-items:center">${art("fjord", 34)}<div style="text-align:left"><div style="font-size:13px; font-weight:600">Teardrop</div><div class="t-cap" style="letter-spacing:.06em; text-transform:none; font-size:11px">Massive Attack</div></div></div>
+     <div class="abs ctr" style="top:100px; gap:14px; padding:0 54px">
+       <div style="font-size:14px; color:var(--t3)">Love, love is a verb</div>
+       <div style="font-size:14px; color:var(--t2)">Love is a doing word</div>
+       <div style="font-size:21px; font-weight:600; line-height:1.25"><span class="cm">Fearless on my</span> breath</div>
+       <div style="font-size:14px; color:var(--t2)">Gentle impulsion</div>
+       <div style="font-size:14px; color:var(--t3)">Shakes me, makes me lighter</div></div>
+     ${hint("Synced · .lrc sidecar")}` },
+  { g: "np", id: "NP-04", t: "Track details sheet", d: "Swipe up. A standard bottom sheet holding metadata chips and key-value rows. Mono type for file paths only.", fn: () =>
+    `${npBase({ dim: true })}${scrim()}
+     <div class="abs sheet" style="top:58px"><div class="grip"></div>
+       <div style="text-align:center; margin-top:14px"><div class="t-over">Track details</div><div class="t-title" style="margin-top:6px">Teardrop</div><div class="t-sub">Massive Attack · Mezzanine (1998)</div></div>
+       <div style="display:flex; justify-content:center; gap:6px; margin-top:12px"><span class="chip m">FLAC 24/96</span><span class="chip">2,842 kbps</span><span class="chip">DR 11</span></div>
+       <div style="width:252px; margin:14px auto 0; display:grid; gap:0; font-size:12.5px">
+         ${[["Track", "03 / 11"], ["Genre", "Trip-hop"], ["ReplayGain", "−6.4 dB"], ["Size", "78.4 MB"]].map(([k, v]) => `<div style="display:flex; justify-content:space-between; padding:6px 2px; border-bottom:1px solid var(--line)"><span class="c2">${k}</span><span class="num">${v}</span></div>`).join("")}
+       </div>
+       <div class="mono c3" style="text-align:center; font-size:10px; margin-top:10px">/mnt/sdcard/Music/Mezzanine/03.flac</div>
+     </div>` },
+  { g: "np", id: "NP-05", t: "Volume HUD", d: "Shown while the thumb traces the right rim. Only the right-side rim arc is shown alongside the hero volume number and output label—no inner circle. Fades 800 ms after release.", fn: () =>
+    `${npBase({ dim: true })}${scrim()}
+     ${rimArc({ a0: 145, a1: 35, v: .82, w: 6, r: 166 })}
+     <div class="abs ctr" style="top:132px"><div class="t-hero num">82</div><div class="t-cap" style="margin-top:8px">Volume</div></div>
+     <div class="abs ctr" style="top:234px; flex-direction:row; justify-content:center; gap:6px; align-items:center; color:var(--t2); font-size:12.5px; font-weight:500">${ic("headphones", 14)} 4.4 mm BAL</div>` },
+
+  /* ── LIBRARY ── */
+  { g: "lib", id: "LIB-01", t: "Library hub", d: "Fisheye Rim List in fixed order: Favorites, Playlists, Artists, Albums, Genres. Focused row is 284 × 52 with subtext; neighbours are 258 × 44; outer rows are 226 × 44 at 45 % opacity.", fn: () =>
+    `${header("Library", "")}${rimList([
+      { icon: "heart", title: "Favorites", value: "64" },
+      { icon: "playlist", title: "Playlists", value: "12" },
+      { icon: "artist", title: "Artists", sub: "118 artists · A–Z", value: ic("chev", 16) },
+      { icon: "album", title: "Albums", value: "214" },
+      { icon: "genre", title: "Genres", value: "24" }
+    ], 2, { top: 64 })}
+     ${scrollRim(.1, .3)}` },
+  { g: "lib", id: "LIB-02", t: "Albums · cover arc", d: "Covers sit on an arc (132 px focused, 84 / 56 px neighbours). Supports both horizontal swipes across the screen (step 1 album) and right-side rim scrolling (fast scrub through 200+ albums).", fn: () =>
+    `${header("Albums · 214", "")}
+     <div class="abs" style="left:-6px; top:116px; opacity:.35">${art("snow", 56)}</div><div class="abs" style="left:310px; top:116px; opacity:.35">${art("berry", 56)}</div>
+     <div class="abs" style="left:28px; top:96px; opacity:.75">${art("rings", 84)}</div><div class="abs" style="left:248px; top:96px; opacity:.75">${art("moss", 84)}</div>
+     <div class="abs" style="left:114px; top:72px; box-shadow:0 0 0 4px var(--bg), 0 0 0 5.5px var(--moss); border-radius:50%">${art("fjord", 132)}</div>
+     <div class="abs ctr" style="top:220px"><div class="t-title">Mezzanine</div><div class="t-sub" style="margin-top:3px">Massive Attack · 1998</div></div>
+     <div class="abs ctr" style="top:272px; flex-direction:row; gap:6px; justify-content:center"><span class="chip">11 tracks</span></div>
+     ${scrollRim(.18, .22)}
+     ${hint("Swipe or trace rim · tap to open")}` },
+  { g: "lib", id: "LIB-03", t: "Track list", d: "The playing track shows animated Moss equalizer bars (no codec/bit-depth clutter). Numbers and durations use tabular figures. Back = swipe right or chevron at 9 o’clock.", fn: () =>
+    `${header("Mezzanine", "")}${backBtn().replace("left:16px", "left:8px").replace("width:36px", "width:28px")}${rimList(tracks.map(trackRow), 2, { top: 64 })}${scrollRim(.2, .25)}` },
+  { g: "lib", id: "LIB-04", t: "Artists · letter jump", d: "A fast rim spin shows a letter bubble in the core, and lifting the thumb jumps to that letter.", fn: () =>
+    `${header("Artists · 118", "")}${rimList([{ icon: "artist", title: "Lamb" }, { icon: "artist", title: "Massive Attack" }, { icon: "artist", title: "Moderat", sub: "3 albums · 31 tracks" }, { icon: "artist", title: "Mogwai" }, { icon: "artist", title: "Morcheeba" }], 2, { top: 64 })}
+     ${scrim()}<div class="abs" style="left:130px; top:130px; width:100px; height:100px; border-radius:50%; background:var(--s2); display:grid; place-items:center; box-shadow:0 0 0 1.5px var(--moss)"><span class="t-hero cm">M</span></div>${scrollRim(.48, .12)}` },
+
+  /* ── FILES ── */
+  { g: "files", id: "FIL-01", t: "Browser", d: "The breadcrumb overline shows where you are. Folders get a chevron, and files get a duration chip on focus.", fn: () =>
+    `${header("sdcard / Music / Trip-hop", "")}${rimList(fileRows, 2, { top: 64 })}${scrollRim(.3, .2)}` },
+  { g: "files", id: "FIL-02", t: "Action sheet (File & Folder)", d: "Long-press a file to edit its metadata tags & filename, move, or delete. Long-press a folder to rename it, or recursively move / delete the folder and all its contents.", fn: () =>
+    `${header("sdcard / Music / Trip-hop", "")}${rimList(fileRows, 2, { top: 64 })}${scrim()}
+     <div class="abs sheet" style="top:138px"><div class="grip"></div>
+       <div style="text-align:center; margin-top:12px"><div class="t-over">File · Metadata &amp; actions</div><div class="t-head" style="margin-top:4px">03 Teardrop.flac</div><div class="t-sub">Edit tags &amp; filename · Folder: recursive move/del</div></div>
+       <div style="display:flex; justify-content:center; gap:22px; margin-top:14px">
+         <div class="rb"><div class="o">${ic("edit", 20)}</div><label>Edit tags</label></div>
+         <div class="rb"><div class="o">${ic("move", 20)}</div><label>Move</label></div>
+         <div class="rb"><div class="o dng">${ic("trash", 20)}</div><label class="cl">Delete</label></div></div>
+     </div>` },
+  { g: "files", id: "FIL-03", t: "Delete confirm (File / Recursive Folder)", d: "Destructive dialogs need a 600 ms hold on the Lingon button (deletes a single file, or recursively deletes a folder and all nested files). Cancel is the default focus.", fn: () =>
+    `${header("sdcard / Music / Trip-hop", "")}${rimList(fileRows, 2, { top: 64 })}${scrim()}
+     <div class="abs ctr" style="top:70px"><div class="pebble" style="width:60px;height:60px;border-radius:50%;background:color-mix(in srgb,var(--lingon) 18%,transparent); color:var(--lingon)">${ic("trash", 26)}</div>
+       <div class="t-head" style="margin-top:16px">Delete this item?</div>
+       <div class="t-sub" style="margin-top:6px; width:236px; line-height:1.45">“03 Teardrop.flac” (or folder &amp; all contents) is removed from microSD. Can’t be undone.</div>
+       <div style="display:flex; gap:10px; margin-top:20px"><span class="btn ghost" style="box-shadow:0 0 0 1.5px var(--moss); color:var(--t1)">Cancel</span><span class="btn dng">Hold to delete</span></div></div>` },
+  { g: "files", id: "FIL-04", t: "Empty state", d: "Each empty state has a nature glyph, one sentence and one action. It never shows a blank screen.", fn: () =>
+    `${header("sdcard / Podcasts", "")}
+     <div class="abs ctr" style="top:104px"><div class="pebble c3" style="width:76px;height:76px;border-radius:50%;background:var(--s1)">${ic("pine", 34, 1.5)}</div>
+       <div class="t-head" style="margin-top:16px">Nothing here yet</div><div class="t-sub" style="margin-top:4px; width:220px">Copy audio files to this folder in File Transfer mode.</div>
+       <span class="btn" style="margin-top:18px">${ic("transfer", 16)} File Transfer</span></div>` },
+
+  /* ── MODES ── */
+  { g: "modes", id: "MOD-00", t: "Mode picker", d: "Six mode icons on a ring (also opened by holding the Mode puck in Control Center). The focused one gets the Moss ring, and tapping the centre switches modes.", fn: () =>
+    `${["mode_player", "mode_usbdac", "mode_transport", "mode_btrx", "mode_airplay", "mode_transfer"].map((icn, i) => { const [x, y] = pt(i * 60, 116); const on = i === 0;
+      return `<div class="abs pebble" style="left:${x - 26}px; top:${y - 26}px; width:52px; height:52px; border-radius:50%; background:${on ? "color-mix(in srgb,var(--moss) 18%,var(--s1))" : "var(--s1)"}; color:${on ? "var(--moss)" : "var(--t2)"}; ${on ? "box-shadow:0 0 0 3px var(--bg),0 0 0 4.5px var(--moss)" : ""}">${ic(icn, 22)}</div>`; }).join("")}
+     <div class="abs ctr" style="top:142px"><div class="t-title">Player</div><div class="t-sub" style="margin-top:4px">Local playback · microSD</div><span class="chip m" style="margin-top:10px">● Active</span></div>` },
+  ...MODES.map((m, i) => ({ g: "modes", id: `MOD-0${i + 1}`, t: m.name, d: ["The same template as every other mode, showing the idle player state.", "Host-power toggle protects the phone battery. The sample rate is the hero value.", "Digital-only output. The analog section is greyed out.", "Connectivity state uses Fjord, the only non-Moss accent allowed in this view.", "A breathing ring (drift motion) shows the device is waiting.", "Cloudberry warns the user not to unplug during the transfer."][i], fn: () => modeScreen(m) })),
+
+  /* ── SETTINGS ── */
+  { g: "settings", id: "SET-01", t: "Settings", d: "Category list using the same Fisheye Rim List as the Library. Each focused row shows a summary of its current values.", fn: () =>
+    `${header("Settings", "")}${rimList([{ icon: "headphones", title: "Audio" }, { icon: "contrast", title: "Display" }, { icon: "bluetooth", title: "Bluetooth", sub: "On · Sony WH-1000XM5 · LDAC", value: ic("chev", 16) }, { icon: "wifi", title: "Wi-Fi" }, { icon: "power", title: "Power" }], 2, { top: 64 })}${scrollRim(.25, .28)}` },
+  { g: "settings", id: "SET-02", t: "Audio", d: "Rows end in a chevron (drill down), a toggle (switch) or a chip (short value). High gain is a Cloudberry chip, as a caution.", fn: () =>
+    `${header("Audio", "")}${rimList([
+      { icon: "filter", title: "DAC filter", value: ic("chev", 16) }, { icon: "gain", title: "Output gain", sub: "+6 dB analogue relay", value: `<span class="chip b">High</span>` },
+      { icon: "eq", title: "Parametric EQ", value: `<span class="chip m">Acoustic</span>` }, { icon: "rings", title: "Gapless", value: `<span class="tog on"></span>` }, { icon: "volume", title: "Volume limit", value: "85" }], 1, { top: 64 })}${scrollRim(.05, .35)}` },
+  { g: "settings", id: "SET-03", t: "DAC filter picker", d: "Single-select list. The Moss check marks the applied value, and focus is shown separately with the border.", fn: () =>
+    `${header("DAC filter · CS43131", "")}${rimList([
+      { icon: "filter", title: "Fast roll-off · linear", value: `<span class="cm">${ic("check", 18, 2.2)}</span>` }, { icon: "filter", title: "Slow roll-off · linear", sub: "Softer top end, less pre-ring", value: "" },
+      { icon: "filter", title: "Fast · minimum phase", value: "" }, { icon: "filter", title: "Slow · minimum phase", value: "" }, { icon: "filter", title: "NOS", value: "" }], 1, { top: 64 })}${scrollRim(.1, .3)}` },
+  { g: "settings", id: "SET-04", t: "Parametric EQ", d: "Presets in a segmented control, the response curve in Moss, and 10 bands. Trace the rim to adjust the focused band.", fn: eqScreen },
+  { g: "settings", id: "SET-05", t: "Display", d: "This is where the user can swap the accent (Moss / Fjord / Cloudberry / Birch) or the mode (Night / Day / Auto). Both are token-level swaps.", fn: displayScreen },
+  { g: "settings", id: "SET-06", t: "Wi-Fi", d: "Connected network = Moss check. Signal strength appears as a short text chip, not just an icon.", fn: () =>
+    `${header("Wi-Fi", "")}${rimList([{ icon: "wifi", title: "Wi-Fi", value: `<span class="tog on"></span>` }, { icon: "wifi", title: "Studio 5G", sub: "Connected · strong", value: `<span class="cm">${ic("check", 18, 2.2)}</span>` }, { icon: "lock", title: "Fjällstuga", value: `<span class="chip">Fair</span>` }, { icon: "lock", title: "Kontor-Guest", value: "" }, { icon: "plus", title: "Other network", value: "" }], 1, { top: 64 })}${scrollRim(.0, .4)}` },
+  { g: "settings", id: "SET-07", t: "Bluetooth · Fast-cache & Codec Ladder", d: "Last connected peer is cached as Default (#0 in NVS with BD_ADDR, clock offset, SEID, codec & saved volume). Enabling BT issues a Direct Page (< 400 ms) before scanning, and negotiates LDAC 990 → 660 → aptX → AAC → SBC.", fn: () =>
+    `${header("Bluetooth", "")}${rimList([
+      { icon: "bluetooth", title: "Bluetooth", value: `<span class="tog on"></span>` },
+      { icon: "headphones", title: "WH-1000XM5", sub: `<span style="display:inline-flex;gap:4px;margin-top:3px;align-items:center"><span class="chip m" style="height:18px">LDAC 990</span><span class="chip" style="height:18px">Vol 78</span><span class="chip f" style="height:18px">Default</span></span>`, value: `<span class="cm">${ic("check", 18, 2.2)}</span>` },
+      { icon: "headphones", title: "Sennheiser M4", value: `<span class="chip">aptX · Vol 72</span>` },
+      { icon: "headphones", title: "AirPods Pro", value: `<span class="chip">AAC · Vol 66</span>` },
+      { icon: "plus", title: "Scan new device" }
+    ], 1, { top: 64 })}` },
+
+  /* ── GAMES ── */
+  { g: "games", id: "GAM-01", t: "Arcade hub", d: "Same rim list. Best scores are Cloudberry, and the play affordance is the only filled button on the screen.", fn: () =>
+    `${header("Arcade", "")}${rimList([
+      { icon: "rim", title: "Dial Pong", sub: `<span class="cb">Best 18,450 · Stage 07</span>`, value: `<span class="rb"><span class="o pri" style="width:32px;height:32px">${ic("play", 14)}</span></span>` },
+      { icon: "apps", title: "2048 Wheel", sub: "", value: `<span class="num cb" style="font-weight:600">16,384</span>` }, { icon: "pebble", title: "Boomshine", value: `<span class="num cb" style="font-weight:600">L12</span>` }], 0, { top: 104 })}
+     ${hint("Trace rim · tap to play")}` },
+  { g: "games", id: "GAM-02", t: "Dial Pong", d: "The Moss paddle rides the rim under the thumb and the Cloudberry ball bounces inside. The score sits faintly in the core.", fn: pongScreen },
+  { g: "games", id: "GAM-03", t: "2048 Wheel", d: "Tile colours climb through the nature palette: granite → birch → moss → fjord → cloudberry → heather.", fn: g2048Screen },
+  { g: "games", id: "GAM-04", t: "Boomshine", d: "Translucent palette circles chain-react. The tap starts the chain.", fn: boomScreen },
+
+  /* ── OVERLAYS ── */
+  { g: "overlays", id: "OVL-01", t: "Toast", d: "Top-anchored pill (y 40) with icon and text. Auto-dismisses after 2.4 s and never blocks input.", fn: () =>
+    `${npBase()}<div class="abs ctr" style="top:40px"><span class="pill" style="height:34px; background:var(--s2); color:var(--t1); border-color:transparent; box-shadow:0 8px 20px -8px rgba(0,0,0,.5)"><span class="cm">${ic("leaf", 15)}</span> Added to Liked</span></div>` },
+  { g: "overlays", id: "OVL-02", t: "Connection toast", d: "Connectivity events use Fjord.", fn: () =>
+    `${carouselScreen(0)}<div class="abs ctr" style="top:40px"><span class="pill" style="height:34px; background:var(--s2); color:var(--t1); border-color:transparent"><span class="cf">${ic("bluetooth", 15)}</span> XM5 · LDAC 990</span></div>` },
+  { g: "overlays", id: "OVL-03", t: "Low battery dialog", d: "Caution dialogs use a Cloudberry icon well. The recommended action is the filled Moss button.", fn: () =>
+    `${carouselScreen(0)}${scrim()}
+     <div class="abs ctr" style="top:78px"><div class="pebble" style="width:60px;height:60px;border-radius:50%;background:color-mix(in srgb,var(--berry) 18%,transparent); color:var(--berry)">${ic("battery", 28)}</div>
+       <div class="t-head" style="margin-top:16px">Battery at 10 %</div><div class="t-sub" style="margin-top:6px; width:220px; line-height:1.45">Turn on Low Power to dim the screen and stop Wi-Fi.</div>
+       <div style="display:flex; gap:10px; margin-top:20px"><span class="btn ghost">Not now</span><span class="btn pri">Turn on</span></div></div>` },
+  { g: "overlays", id: "OVL-04", t: "Charging", d: "Shown when USB power is attached on the lock screen. A ring fills in Moss, and time-to-full is the supporting detail.", fn: () =>
+    `<svg class="abs fill" width="360" height="360" viewBox="0 0 360 360"><circle cx="180" cy="170" r="92" fill="none" stroke="var(--s2)" stroke-width="8"/><path d="${arcPath(0, 360 * .64, 92).replace(/(\d+\.?\d*) (\d+\.?\d*)$/, (m, a, b) => `${a} ${b}`)}" transform="translate(0,-10)" fill="none" stroke="var(--moss)" stroke-width="8" stroke-linecap="round"/></svg>
+     <div class="abs ctr" style="top:124px"><span class="cm">${ic("power", 20)}</span><div class="t-hero num" style="margin-top:6px">64<span class="t-head c2">%</span></div><div class="t-sub" style="margin-top:6px">1 h 10 m to full</div></div>
+     ${horizon()}` }
+];
+</script>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   5 · FOUNDATION SLIDE RENDERERS
+   ════════════════════════════════════════════════════════════════════ */
+const $ = s => document.querySelector(s);
+const dev = (inner, cls = "") => `<div class="bezel ${cls}"><div class="dev">${inner}</div></div>`;
+
+function lum(hex) { const c = hex.replace("#", "").match(/../g).map(x => parseInt(x, 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; }
+function contrast(a, b) { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); }
+const grade = r => r >= 7 ? `<span class="tag ok">AAA ${r.toFixed(1)}</span>` : r >= 4.5 ? `<span class="tag ok">AA ${r.toFixed(1)}</span>` : r >= 3 ? `<span class="tag warn">AA-large ${r.toFixed(1)}</span>` : `<span class="tag bad">${r.toFixed(1)}</span>`;
+const rgb565 = hex => { const [r, g, b] = hex.replace("#", "").match(/../g).map(x => parseInt(x, 16)); return "0x" + (((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)).toString(16).toUpperCase().padStart(4, "0"); };
+
+function renderPrinciples() {
+  const P = [
+    ["Lagom", "pebble", "Just enough. One hero per screen, max 5 visible rows, max 2 font weights. Remove before you add."],
+    ["Natural palette", "leaf", "Colour comes from moss, birch, fjord and berries. Desaturated, warm-tinted greys. No pure black, no pure white, no neon."],
+    ["Calm technology", "moon", "The UI recedes and the music leads. Ambient motion is slow, hints fade after use, and nothing glows or pulses for attention."],
+    ["Rim first", "rim", "The thumb lives on the edge and the eyes live in the centre. Every control can be reached by tracing the rim, so nothing covers the content."]
+  ];
+  $("#principles").innerHTML = P.map(([t, i, d], n) => `<div class="card" style="display:flex; flex-direction:column; gap:14px; min-height:220px">
+    <div class="pebble" style="width:52px;height:52px;border-radius:50%;background:color-mix(in srgb,var(--moss) 16%,var(--s2)); color:var(--moss)">${ic(i, 24)}</div>
+    <div class="mono c3" style="font-size:11px">0${n + 1}</div><div style="font-size:20px; font-weight:600">${t}</div><p class="note">${d}</p></div>`).join("");
+}
+function renderSwatches() {
+  const bg = C("bg");
+  const sw = k => { const [hex, desc] = TOKENS.color[MODE][k]; const r = contrast(hex, bg);
+    const [name, ...rest] = desc.split(" · ");
+    return `<div class="swatch"><div class="chipc" style="background:${hex}"></div><div class="meta"><b>${name}</b><span>--${k} · ${hex}</span><em>${rest.join(" · ")}</em>
+      ${["bg", "page", "s1", "s2", "s3", "line", "bezel", "onAccent"].includes(k) ? "" : `<div style="margin-top:4px">${grade(r)}</div>`}</div></div>`; };
+  $("#swNeutral").innerHTML = ["bg", "s1", "s2", "s3", "line", "t3", "t2", "t1"].map(sw).join("");
+  $("#swAccent").innerHTML = ["moss", "fjord", "berry", "lingon", "birch", "heather"].map(sw).join("");
+}
+function renderColorRules() {
+  $("#ratioBar").innerHTML = `<div style="flex:60; background:var(--bg); color:var(--t3)">60 · BG</div><div style="flex:30; background:var(--s2); color:var(--t2)">30 · SURFACES + TEXT</div><div style="flex:10; background:var(--moss); color:var(--onAccent)">10</div>`;
+  const rows = [["moss", "Accent / focus / on / progress", "Focused row border, toggles on, progress & volume arcs, primary button, current lyric"],
+    ["fjord", "Connectivity & info", "Wi-Fi, Bluetooth, AirPlay states, connection toasts, Library app tint"],
+    ["berry", "Warmth & caution", "High gain, low battery, “do not unplug”, game scores, Arcade app tint"],
+    ["lingon", "Destructive & error", "Delete, format, failed transfer. Never decorative."],
+    ["birch", "Neutral highlight", "Brightness arc, Files app tint, 2048 low tiles"],
+    ["heather", "App tint only", "Operating Modes pebble. Not used inside screens."]];
+  $("#semTable").innerHTML = `<tr><th></th><th>Role</th><th>Use for</th></tr>` + rows.map(([k, r, u]) => `<tr><td><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:var(--${k});vertical-align:middle;margin-right:8px"></span>${k}</td><td>${r}</td><td>${u}</td></tr>`).join("");
+  const DD = [["do", "Use Moss for every focus, selection and “on” state across all apps."], ["dont", "Give each app its own accent inside its screens (amber Now Playing, cyan Library…)."],
+    ["do", "Pair colour with shape: a check, a border, a label. Colour alone never carries meaning."], ["dont", "Use glows, neon or gradients on text. Glow reads as “gamer”, not Nordic."],
+    ["do", "Keep a screen to one accent plus at most one semantic colour."], ["dont", "Use Lingon for anything that isn't destructive or an error, even if it looks nice."]];
+  $("#dodont").innerHTML = DD.map(([k, t]) => `<div class="dodont"><div class="head" style="color:var(--${k === "do" ? "moss" : "lingon"})">${k === "do" ? "✓ Do" : "✕ Don't"}</div><div class="body">${t}</div></div>`).join("");
+}
+function renderType() {
+  const sample = { display: "21:45", hero: "384 kHz", title: "Teardrop", headline: "Music Library", body: "Fast roll-off · linear", sub: "Massive Attack · Mezzanine", caption: "Trace rim to scroll" };
+  $("#typeTable").innerHTML = `<tr><th>Role</th><th>Size / weight / tracking</th><th>Sample</th></tr>` + TOKENS.type.map(([r, s, w, tr, use]) =>
+    `<tr><td>${r}<div class="c3" style="font-size:11.5px; font-weight:400">${use}</div></td><td class="mono">${s} / ${w} / ${tr}</td>
+     <td style="font-size:${Math.min(s, 44)}px; font-weight:${w}; letter-spacing:${tr}; color:var(--t1); ${r === "caption" ? "text-transform:uppercase" : ""}; white-space:nowrap" class="num">${sample[r]}</td></tr>`).join("");
+}
+function renderGeometry() {
+  $("#geoDiagram").innerHTML = dev(`
+    <svg class="abs fill" width="360" height="360" viewBox="0 0 360 360">
+      <circle cx="180" cy="180" r="165" fill="none" stroke="var(--berry)" stroke-opacity=".35" stroke-width="30"/>
+      <circle cx="180" cy="180" r="150" fill="color-mix(in srgb, var(--moss) 10%, transparent)" stroke="var(--moss)" stroke-dasharray="3 4"/>
+      <circle cx="180" cy="180" r="60" fill="color-mix(in srgb, var(--fjord) 18%, transparent)" stroke="var(--fjord)" stroke-dasharray="3 4"/>
+      <rect x="53" y="53" width="254" height="254" fill="none" stroke="var(--t3)" stroke-dasharray="2 5"/>
+      <rect x="110" y="20" width="140" height="16" rx="4" fill="none" stroke="var(--t2)" stroke-dasharray="2 3"/>
+      <rect x="100" y="324" width="160" height="16" rx="4" fill="none" stroke="var(--t2)" stroke-dasharray="2 3"/>
+      <path d="M180 180 L180 15" stroke="var(--t2)" stroke-dasharray="2 3"/>
+      <text x="186" y="40" font-size="10" fill="var(--t2)" font-family="Inter" font-weight="600">r 180</text>
+      <text x="180" y="184" font-size="11" fill="var(--fjord)" text-anchor="middle" font-family="Inter" font-weight="700">CORE</text>
+      <text x="180" y="262" font-size="11" fill="var(--moss)" text-anchor="middle" font-family="Inter" font-weight="700">STAGE</text>
+      <text x="180" y="308" font-size="9" fill="var(--t3)" text-anchor="middle" font-family="Inter" font-weight="600">SAFE SQUARE 254</text>
+      <text x="22" y="184" font-size="10" fill="var(--berry)" font-family="Inter" font-weight="700">RIM</text>
+      <text x="180" y="31" font-size="9" fill="var(--t2)" text-anchor="middle" font-family="Inter" font-weight="600">STATUS</text>
+      <text x="180" y="335" font-size="9" fill="var(--t2)" text-anchor="middle" font-family="Inter" font-weight="600">HINT</text>
+    </svg>`);
+}
+function renderSpace() {
+  $("#spaceScale").innerHTML = TOKENS.space.map((s, i) => `<div style="display:flex; align-items:center; gap:12px"><span class="mono c3" style="width:52px; font-size:11px">space-${i + 1}</span><div style="height:12px; width:${s * 3}px; border-radius:4px; background:var(--moss); opacity:${.4 + i * .08}"></div><span class="mono" style="font-size:12px">${s}px</span></div>`).join("");
+  $("#radiusScale").innerHTML = Object.entries(TOKENS.radius).map(([k, v]) => `<div style="display:flex; flex-direction:column; align-items:center; gap:8px"><div style="width:64px; height:64px; background:var(--s2); border:1.5px solid var(--moss); border-radius:${typeof v === "number" ? Math.min(v, 32) + "px" : v}"></div><span class="mono" style="font-size:11px">${k} · ${v}${typeof v === "number" ? "" : ""}</span></div>`).join("");
+  $("#elevScale").innerHTML = [["bg", "Level 0 · screen"], ["s1", "Level 1 · rows, cards, sheets"], ["s2", "Level 2 · focused, icon wells, toasts"], ["s3", "Level 3 · pressed, tracks"]].map(([k, l]) =>
+    `<div style="display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:14px; background:var(--${k}); border:1px solid var(--line)"><span class="mono" style="font-size:11px; color:var(--t3); width:30px">--${k}</span><span style="font-size:13px">${l}</span></div>`).join("") +
+    `<p class="note" style="margin-top:4px">Scrim: <code>bg @ 72 %</code> + 6 px blur. The only shadow allowed is on toasts (0 8 20 −8, 50 % black), and only in Night mode.</p>`;
+}
+function renderIcons() {
+  $("#iconGrid").innerHTML = Object.keys(ICONS).map(k => `<div class="iconcell">${ic(k, 28)}<span>${k}</span></div>`).join("");
+  $("#iconRules").innerHTML = [
+    ["Grid", `<svg width="72" height="72" viewBox="0 0 24 24"><rect x="0" y="0" width="24" height="24" fill="var(--s2)"/><rect x="2" y="2" width="20" height="20" fill="none" stroke="var(--berry)" stroke-width=".2" stroke-dasharray=".6 .6"/><circle cx="12" cy="12" r="10" fill="none" stroke="var(--fjord)" stroke-width=".2"/><g stroke="var(--t1)" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6.6l10-2.4v11.4"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/></g></svg>`, "24 px canvas · 20 px live area · 2 px padding · optical circle ⌀20"],
+    ["Stroke", `<div style="display:flex; gap:14px; align-items:center">${ic("leaf", 40)}${ic("leaf", 24)}${ic("leaf", 16)}</div>`, "1.75 @ 24. Scales with size, minimum rendered 1.5 px. Round caps &amp; joins."],
+    ["Sizes", `<div style="display:flex; gap:10px; align-items:end">${[16, 20, 24, 32].map(s => `<div style="text-align:center">${ic("rings", s)}<div class="mono c3" style="font-size:10px">${s}</div></div>`).join("")}</div>`, "16 inline · 20 rows · 24 actions · 32+ hero. Rasterise per size on device."],
+    ["Colour", `<div style="display:flex; gap:12px">${["t2", "moss", "fjord", "lingon"].map(c => `<span style="color:var(--${c})">${ic("bluetooth", 28)}</span>`).join("")}</div>`, "One colour, follows text colour. Accent only when the icon's row is focused or on."]
+  ].map(([t, v, d]) => `<div class="card" style="display:flex; flex-direction:column; gap:12px"><div class="t-cap">${t}</div><div style="min-height:72px; display:flex; align-items:center">${v}</div><p class="note">${d}</p></div>`).join("");
+}
+function renderAppIcons() {
+  $("#appIcons").innerHTML = APPS.map((a, i) => `<div class="card" style="display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center">
+     ${pebble(a, 96, { ring: i === 0 })}<div><div style="font-weight:600">${a.name}</div><div class="mono c3" style="font-size:11px; margin-top:4px">${a.icon} · --${a.tint}</div></div>
+     <div style="display:flex; gap:10px; align-items:end">${pebble(a, 52)}${pebble(a, 36)}</div></div>`).join("");
+  $("#pebbleSpec").innerHTML = [
+    ["Shape", "A perfect circle (it echoes the round display). Sizes: 104 focused on Home, 60 on the app wheel, 44 / 32 for neighbours, 96 / 52 / 36 in the store."],
+    ["Fill", "<code>radial-gradient(at 30% 25%, tint 26% → tint 12% over surface-1)</code> + 1 px inner ring at tint 22 % + 1 px top highlight. Feels like felt, not glass."],
+    ["Glyph &amp; focus", "Line icon at 42 % of the pebble diameter, in the tint colour. Focus = 4 px <code>bg</code> gap + 1.5 px Moss ring (the same focus ring as everywhere)."]
+  ].map(([t, d]) => `<div class="card"><div class="t-cap" style="margin-bottom:8px">${t}</div><p class="note">${d}</p></div>`).join("");
+}
+function renderComponents() {
+  const panel = (title, spec, inner, h = 120) => `<div class="card" style="display:flex; flex-direction:column; gap:14px"><div style="display:flex; justify-content:space-between; align-items:baseline"><b style="font-size:14px">${title}</b><span class="mono c3" style="font-size:10.5px">${spec}</span></div>
+    <div style="background:var(--bg); border-radius:16px; min-height:${h}px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:center; padding:16px; position:relative">${inner}</div></div>`;
+  $("#components").innerHTML = [
+    panel("Rim list row", "284×52 · r18 · focus 1.5", `<div class="row sel" style="width:260px"><div class="ri">${ic("album", 17)}</div><div class="rt"><b>Albums</b><em>214 albums</em></div><div class="rv">${ic("chev", 16)}</div></div><div class="row compact" style="width:236px"><div class="ri">${ic("note", 17)}</div><div class="rt"><b>Songs</b></div><div class="rv">1,428</div></div>`),
+    panel("Buttons", "h40 · pill · 14/600", `<span class="btn pri">Turn on</span><span class="btn">Secondary</span><span class="btn ghost">Cancel</span><span class="btn dng">Delete</span>`),
+    panel("Round actions", "⌀52 · label 10/600 caps", `<div class="rb"><div class="o on">${ic("leaf", 22)}</div><label class="cm">Liked</label></div><div class="rb"><div class="o">${ic("shuffle", 22)}</div><label>Shuffle</label></div><div class="rb"><div class="o pri">${ic("play", 20)}</div><label>Play</label></div><div class="rb"><div class="o dng">${ic("trash", 20)}</div><label class="cl">Delete</label></div>`),
+    panel("Pills & segmented", "h30 / h26 · 12.5/600", `<span class="pill on">Albums</span><span class="pill">Artists</span><div class="seg"><span class="on">Night</span><span>Day</span><span>Auto</span></div>`),
+    panel("Chips & toggles", "h22 chip · 40×24 toggle", `<span class="chip m">FLAC 24/96</span><span class="chip f">LDAC 990</span><span class="chip b">High</span><span class="chip l">Error</span><span class="chip">5:30</span><span class="tog on"></span><span class="tog"></span>`),
+    panel("Rim arc", "r166 · w4 · knob ⌀13", `<div style="width:200px; height:110px; position:relative; overflow:hidden"><div style="position:absolute; left:-80px; top:-125px; transform:scale(1)">${`<svg width="360" height="360" viewBox="0 0 360 360"><path d="${arcPath(110, 250, 150)}" stroke="var(--s3)" stroke-width="4" fill="none" stroke-linecap="round"/><path d="${arcPath(250, 160, 150)}" stroke="var(--moss)" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="${pt(160, 150)[0]}" cy="${pt(160, 150)[1]}" r="6.5" fill="var(--moss)" stroke="var(--bg)" stroke-width="2.5"/></svg>`}</div></div>`),
+    panel("CC state pucks (Gain & USB)", "⌀66 · lit = ON · unlit = OFF", `<div class="rb"><div class="o" style="background:var(--s1);color:var(--t3);box-shadow:inset 0 0 0 1px var(--line)">${ic("gain_low", 24)}</div><label>Low Gain</label></div><div class="rb"><div class="o" style="background:color-mix(in srgb,var(--berry) 18%,var(--s1));color:var(--berry);box-shadow:inset 0 0 0 1.5px var(--berry)">${ic("gain_high", 24)}</div><label class="cb">High Gain</label></div><div class="rb"><div class="o" style="background:var(--s1);color:var(--t3);box-shadow:inset 0 0 0 1px var(--line)">${ic("usb_charge", 24)}</div><label>Chg OFF</label></div><div class="rb"><div class="o on">${ic("usb_charge", 24)}</div><label class="cm">Chg ON</label></div>`),
+    panel("6 Mode icons (hold CC puck)", "1 icon per working mode", `${[["mode_player","Player"],["mode_usbdac","DAC"],["mode_transport","Trans"],["mode_btrx","BT RX"],["mode_airplay","AirPlay"],["mode_transfer","USB TF"]].map(([k,l],i)=>`<div class="rb"><div class="o ${i===0?"on":""}" style="width:42px;height:42px">${ic(k, 20)}</div><label>${l}</label></div>`).join("")}`),
+    panel("Status · hint · grip", "12/600 · 10/600 caps", `<div style="display:flex; flex-direction:column; gap:14px; align-items:center"><div class="sb num" style="position:static">21:45<i></i>${ic("battery", 16)}<span>82%</span></div><div style="width:30px;height:4px;border-radius:4px;background:var(--s3)"></div><div class="hint" style="position:static">${ic("up", 12, 2)}Swipe up · details</div></div>`)
+  ].join("");
+}
+function renderStates() {
+  const st = ["Default", "Focused", "Pressed", "Disabled"];
+  const row = c => `<div class="row ${c}" style="width:230px"><div class="ri">${ic("headphones", 17)}</div><div class="rt"><b>Audio</b></div><div class="rv">${ic("chev", 16)}</div></div>`;
+  const btn = c => `<span class="btn pri ${c}">Play</span>`;
+  const rb = c => `<div class="rb" style="${c === "dis" ? "opacity:.4" : ""}"><div class="o ${c === "sel" ? "on" : ""}" style="${c === "press" ? "background:var(--s3); transform:scale(.97)" : ""}">${ic("shuffle", 22)}</div></div>`;
+  const pill = c => `<span class="pill ${c === "sel" ? "on" : ""}" style="${c === "press" ? "background:var(--s3)" : c === "dis" ? "opacity:.4" : ""}">Albums</span>`;
+  const map = { Default: "", Focused: "sel", Pressed: "press", Disabled: "dis" };
+  $("#statesTable").innerHTML = `<table class="spec"><tr><th>Component</th>${st.map(s => `<th>${s}</th>`).join("")}</tr>
+    ${[["List row", row], ["Primary button", c => btn(c === "sel" ? "" : c) + (c === "sel" ? `<div class="c3" style="font-size:11px; margin-top:6px">+ 1.5 px ring, 3 px offset</div>` : "")], ["Round action", rb], ["Pill", pill]].map(([n, f]) =>
+      `<tr><td>${n}</td>${st.map(s => `<td style="background:var(--bg)">${f(map[s])}</td>`).join("")}</tr>`).join("")}
+    <tr><td>Token recipe</td><td class="mono" style="font-size:11px">surface-1</td><td class="mono" style="font-size:11px">surface-2 + 1.5 moss border</td><td class="mono" style="font-size:11px">surface-3 · scale .97 · 140 ms</td><td class="mono" style="font-size:11px">opacity .40 · no hit-test</td></tr></table>`;
+}
+function renderMotion() {
+  $("#motionTable").innerHTML = `<tr><th>Token</th><th>Duration</th><th>Easing</th><th>Use</th></tr>` + Object.entries(TOKENS.motion).map(([k, [d, e, u]]) => `<tr><td>${k}</td><td class="mono">${d} ms</td><td class="mono" style="font-size:11px">${e}</td><td>${u}</td></tr>`).join("") +
+    `<tr><td>Rim detent</td><td class="mono">—</td><td class="mono" style="font-size:11px">15° per item</td><td>Haptic tick 8 ms + list settle. Velocity &gt; 180°/s = 3 items per detent.</td></tr>
+     <tr><td>Reduce motion</td><td class="mono">—</td><td class="mono" style="font-size:11px">setting</td><td>Disc stops spinning, breathing stops, and transitions become 80 ms cross-fades.</td></tr>`;
+}
+function renderNav() {
+  const col = (title, id, items) => `<div class="flow"><div class="node root"><span class="pebble" style="width:28px;height:28px;border-radius:50%;background:var(--s2);color:var(--moss)">${ic(title[2], 15)}</span><div><b>${title[0]}</b><span class="id">${id}</span></div></div>
+    ${items.map(([n, i]) => `<div class="node" style="margin-left:14px"><div><b style="font-weight:500; font-size:12.5px">${n}</b><span class="id">${i}</span></div></div>`).join("")}</div>`;
+  $("#navMap").innerHTML = `
+   <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap">
+     ${[["Boot", "SYS-00"], ["Lock", "LCK-01/02"], ["Home carousel", "HOM-01"], ["App wheel", "HOM-03"]].map(([n, i], k) => `<div class="node ${k === 2 ? "root" : ""}"><div><b>${n}</b><span class="id">${i}</span></div></div>${k < 3 ? `<span class="c3">${ic("chev", 16)}</span>` : ""}`).join("")}
+     <span class="c3" style="margin-left:auto; font-size:12.5px">From anywhere ↓ top edge →</span><div class="node" style="border-color:var(--fjord)"><div><b>Control Center</b><span class="id">CC-01 · CC-02</span></div></div>
+   </div>
+   <div class="grid" style="grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px">
+     ${col(["Now Playing", 0, "rings"], "NP-01", [["Quick actions", "NP-02"], ["Lyrics", "NP-03"], ["Details sheet", "NP-04"], ["Volume HUD", "NP-05"]])}
+     ${col(["Library", 0, "note"], "LIB-01", [["Albums", "LIB-02"], ["Tracks", "LIB-03"], ["Artists", "LIB-04"], ["→ Now Playing", "NP-01"]])}
+     ${col(["Files", 0, "folder"], "FIL-01", [["Action sheet", "FIL-02"], ["Delete confirm", "FIL-03"], ["Empty", "FIL-04"]])}
+     ${col(["Modes", 0, "modes"], "MOD-00", [["Player", "MOD-01"], ["USB DAC", "MOD-02"], ["Transport", "MOD-03"], ["BT receiver", "MOD-04"], ["AirPlay", "MOD-05"], ["File transfer", "MOD-06"]])}
+     ${col(["Settings", 0, "tune"], "SET-01", [["Audio", "SET-02"], ["DAC filter", "SET-03"], ["EQ", "SET-04"], ["Display", "SET-05"], ["Wi-Fi", "SET-06"], ["Bluetooth", "SET-07"]])}
+     ${col(["Arcade", 0, "games"], "GAM-01", [["Dial Pong", "GAM-02"], ["2048 Wheel", "GAM-03"], ["Boomshine", "GAM-04"]])}
+   </div>`;
+  $("#gestureTable").innerHTML = `<tr><th>Gesture</th><th>Where</th><th>Result</th></tr>` + [
+    ["Trace rim", "r > 150 px", "Scroll the focused list / carousel; adjust the focused value (volume, EQ band). 15° per detent."],
+    ["1 touch (Single tap)", "Now Playing / focused row", "On Now Playing: 1 touch opens Quick Actions (NP-02, showing Song/Artist/Album + bottom 4-icon arc), 1 touch closes it."],
+    ["2 quick touches (Double-tap)", "Now Playing disc", "Pauses or starts playback immediately without opening a menu."],
+    ["Slide inner ring / Hold & turn vinyl", "Inner ring (r ≈ 38 px) or Vinyl", "Inner circle (0° = 0% at 12 o’clock → 359° = 99%) is the single progress & seek bar. Slide directly along the inner circle OR hold & rotate anywhere on the vinyl to seek."],
+    ["Swipe right / left", "anywhere (not rim)", "In menus: swipe right goes back one level. On Now Playing: swipe right = Next track, swipe left = Previous / restart."],
+    ["Swipe down from top edge", "y < 40 px", "Control Center (global)."],
+    ["Swipe up from bottom edge", "y > 320 px", "Details sheet in Now Playing; close Control Center; unlock from Lock."],
+    ["Hold (Long-press)", "file / folder / CC puck", "On a file: opens FIL-02 to edit metadata tags + filename, move, or delete. On a folder: rename folder, or recursively move/delete all contents. On CC Wi-Fi, Bluetooth, or Mode puck: opens submenu."],
+    ["Hold 600 ms", "destructive button / lock shield", "Confirm destructive action / unlock touch shield. A ring fills as feedback."]
+  ].map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("");
+}
+function renderRedlines() {
+  const ann = (inner, marks) => `<div style="position:relative; width:460px; height:420px">
+     <div style="position:absolute; left:50px; top:18px">${dev(inner)}</div>
+     <svg width="460" height="420" style="position:absolute; inset:0; pointer-events:none; overflow:visible" font-family="Inter" font-size="10.5" font-weight="600">${marks}</svg></div>`;
+  const R = "var(--berry)";
+  const lbl = (x, y, t, a = "start") => `<g><rect x="${a === "end" ? x - t.length * 6 - 10 : x - 4}" y="${y - 12}" width="${t.length * 6 + 12}" height="17" rx="5" fill="var(--bg)" stroke="${R}" stroke-width=".8"/><text x="${a === "end" ? x - 4 : x + 2}" y="${y}" fill="${R}" text-anchor="${a}">${t}</text></g>`;
+  const o = 62; // device origin offset inside annotation svg (50 + 12 bezel)
+  const npMarks = `
+    <path d="M${o + 6} ${o + 100}H${o + 354}" stroke="${R}" stroke-dasharray="3 3"/>${lbl(o + 96, o + 94, "Full-bleed art ⌀360 · zero text")}
+    <path d="M${o + 330} ${o + 60}L${o + 400} ${o + 30}" stroke="${R}"/>${lbl(o + 400, o + 34, "Volume rim r166 w4")}
+    <path d="M${o + 218} ${o + 180}L${o + 400} ${o + 180}" stroke="${R}"/>${lbl(o + 400, o + 184, "Inner seek ring r38 · 0°–360°")}
+    <path d="M${o + 142} ${o + 180}L${o - 50} ${o + 160}" stroke="${R}"/>${lbl(o - 52, o + 152, "Slide ring or hold vinyl to seek")}
+    <path d="M${o + 180} ${o + 336}L${o + 400} ${o + 340}" stroke="${R}"/>${lbl(o + 400, o + 344, "Chevron icon only · 20px · y324")}`;
+  const listMarks = `
+    <path d="M${o + 38} ${o + 196}V${o + 214}M${o + 322} ${o + 196}V${o + 214}M${o + 38} ${o + 205}H${o + 322}" stroke="${R}"/>${lbl(o + 140, o + 230, "Focused 284 × 52")}
+    <path d="M${o + 330} ${o + 172}L${o + 400} ${o + 150}" stroke="${R}"/>${lbl(o + 400, o + 154, "r18 · 1.5 moss · s2")}
+    <path d="M${o + 64} ${o + 126}L${o - 50} ${o + 100}" stroke="${R}"/>${lbl(o - 52, o + 92, "Neighbour 258×44")}
+    <path d="M${o + 64} ${o + 172}L${o - 50} ${o + 176}" stroke="${R}"/>${lbl(o - 52, o + 168, "Icon well ⌀32")}
+    <path d="M${o + 180} ${o + 64}L${o + 400} ${o + 40}" stroke="${R}"/>${lbl(o + 400, o + 44, "Overline 11/600 · y46")}
+    <path d="M${o + 345} ${o + 200}L${o + 400} ${o + 260}" stroke="${R}"/>${lbl(o + 400, o + 264, "Scroll rim r170 w3")}
+    <path d="M${o + 100} ${o + 290}L${o - 50} ${o + 320}" stroke="${R}"/>${lbl(o - 52, o + 336, "Outer row · 45 %")}
+    <path d="M${o + 180} ${o + 148}V${o + 156}" stroke="${R}"/>${lbl(o + 186, o + 160, "gap 8")}`;
+  const lib = SCREENS.find(s => s.id === "LIB-03").fn(), np = SCREENS.find(s => s.id === "NP-01").fn();
+  $("#redlines").innerHTML = `<figure class="shot">${ann(np, npMarks)}<figcaption><b>Player template</b><span>NP-01 · LCK-02 · NP-05</span></figcaption></figure>
+    <figure class="shot">${ann(lib, listMarks)}<figcaption><b>Fisheye Rim List template</b><span>LIB · FIL · SET · GAM</span></figcaption></figure>`;
+}
+function renderA11y() {
+  const bg = C("bg"), s1 = C("s1"), s2 = C("s2");
+  const checks = [["Primary text on bg", "t1", bg], ["Secondary text on surface-1", "t2", s1], ["Hint text on bg", "t3", bg], ["Moss on focused row (s2)", "moss", s2],
+    ["Fjord on bg", "fjord", bg], ["Cloudberry on bg", "berry", bg], ["Lingon on bg", "lingon", bg], ["On-accent text on Moss", "onAccent", C("moss")]];
+  $("#a11yTable").innerHTML = `<tr><th>Pair (${MODE === "night" ? "Polar Night" : "Birch Day"})</th><th>Foreground</th><th>Background</th><th>Contrast</th></tr>` +
+    checks.map(([n, fg, b]) => `<tr><td>${n}</td><td class="mono">${C(fg)}</td><td class="mono">${b}</td><td>${grade(contrast(C(fg), b))}</td></tr>`).join("") +
+    `<tr><td>Touch targets</td><td colspan="2">Every hit area is ≥ 44 × 44 px, including on compact rows (44 px high).</td><td><span class="tag ok">Pass</span></td></tr>
+     <tr><td>Not colour alone</td><td colspan="2">Focus = border + tone, selected = check mark, error = icon + text.</td><td><span class="tag ok">Pass</span></td></tr>
+     <tr><td>Text-3 usage</td><td colspan="2">Only for hints, captions and disabled text. Never for information the user needs.</td><td><span class="tag warn">Rule</span></td></tr>`;
+}
+function renderTokens(k = window.__tok || "c") {
+  window.__tok = k;
+  document.querySelectorAll("#tokTabs button").forEach(b => b.classList.toggle("on", b.dataset.k === k));
+  const keys = Object.keys(TOKENS.color.night).filter(x => !["page", "bezel"].includes(x));
+  const cname = { s1: "SURFACE_1", s2: "SURFACE_2", s3: "SURFACE_3", t1: "TEXT_1", t2: "TEXT_2", t3: "TEXT_3", onAccent: "ON_ACCENT", berry: "CLOUDBERRY", lingon: "LINGON", line: "LINE", bg: "BG" };
+  const cn = x => (cname[x] || x.toUpperCase());
+  let out = "";
+  if (k === "c") {
+    out = `/* dial_theme_fjall.h — generated from the Fjäll design system v${TOKENS.meta.version}\n * Replaces the Stone palette in include/dial_theme.h. Do not edit by hand.\n */\n#ifndef DIAL_THEME_FJALL_H\n#define DIAL_THEME_FJALL_H\n\n#include <stdint.h>\n\ntypedef enum { DIAL_MODE_NIGHT = 0, DIAL_MODE_DAY } dial_mode_t;\n\ntypedef struct {\n` +
+      keys.map(x => `    uint32_t ${cn(x).toLowerCase().padEnd(11)}; /* ${TOKENS.color.night[x][1]} */`).join("\n") + `\n} dial_palette_t;\n\n` +
+      ["night", "day"].map(m => `/* ${m === "night" ? "Polar Night" : "Birch Day"} — 0xRRGGBB  (RGB565 in comment) */\nstatic const dial_palette_t DIAL_PALETTE_${m.toUpperCase()} = {\n` +
+        keys.map(x => `    .${cn(x).toLowerCase().padEnd(11)} = 0x${TOKENS.color[m][x][0].slice(1).toUpperCase()},  /* ${rgb565(TOKENS.color[m][x][0])} */`).join("\n") + `\n};\n`).join("\n") +
+      `\n/* Geometry (device px, 360x360) */\n#define DIAL_RIM_INNER_R      150\n#define DIAL_RIM_ARC_R        166\n#define DIAL_CORE_R           60\n#define DIAL_VINYL_SEEK_R     38   /* Inner vinyl progress/seek ring: 0 deg = 0%, 359 deg = 99% */\n#define DIAL_SAFE_SQUARE      254\n#define DIAL_TOUCH_MIN        44\n#define DIAL_DETENT_DEG       15\n\n/* Spacing (4px grid) */\n` +
+      TOKENS.space.map((s, i) => `#define DIAL_SPACE_${i + 1}          ${s}`).join("\n") +
+      `\n\n/* Radius */\n` + Object.entries(TOKENS.radius).filter(([, v]) => typeof v === "number").map(([n, v]) => `#define DIAL_RADIUS_${n.toUpperCase().padEnd(8)} ${v}`).join("\n") +
+      `\n\n/* Stroke */\n#define DIAL_STROKE_ICON_X100 175\n#define DIAL_STROKE_FOCUS_X10 15\n#define DIAL_STROKE_RIM       4\n\n/* Type scale: px, weight */\n` +
+      TOKENS.type.map(([n, s, w]) => `#define DIAL_FONT_${n.toUpperCase().padEnd(9)} ${String(s).padStart(2)}, ${w}`).join("\n") +
+      `\n\n/* Motion (ms) */\n` + Object.entries(TOKENS.motion).map(([n, [d]]) => `#define DIAL_MOTION_${n.toUpperCase().padEnd(8)} ${d}`).join("\n") + `\n#define DIAL_SCRIM_ALPHA      184  /* 72% of 255 */\n\n#endif /* DIAL_THEME_FJALL_H */\n`;
+  } else if (k === "css") {
+    out = ["night", "day"].map(m => `${m === "night" ? ":root, [data-mode=\"night\"]" : "[data-mode=\"day\"]"} {\n` + keys.map(x => `  --fj-${x}: ${TOKENS.color[m][x][0]};`).join("\n") + `\n}`).join("\n\n") +
+      `\n\n:root {\n` + TOKENS.space.map((s, i) => `  --fj-space-${i + 1}: ${s}px;`).join("\n") + "\n" + Object.entries(TOKENS.radius).map(([n, v]) => `  --fj-radius-${n}: ${typeof v === "number" ? v + "px" : v};`).join("\n") + "\n" +
+      TOKENS.type.map(([n, s, w, t]) => `  --fj-font-${n}: ${w} ${s}px/1.25 Inter, system-ui, sans-serif;  --fj-track-${n}: ${t};`).join("\n") + "\n" +
+      Object.entries(TOKENS.motion).map(([n, [d, e]]) => `  --fj-motion-${n}: ${d}ms ${e};`).join("\n") + `\n}\n`;
+  } else {
+    const dt = { $schema: "https://design-tokens.github.io/community-group/format/", fjall: { color: {}, space: {}, radius: {}, motion: {}, typography: {} } };
+    ["night", "day"].forEach(m => { dt.fjall.color[m] = {}; keys.forEach(x => dt.fjall.color[m][x] = { $type: "color", $value: TOKENS.color[m][x][0], $description: TOKENS.color[m][x][1] }); });
+    TOKENS.space.forEach((s, i) => dt.fjall.space[i + 1] = { $type: "dimension", $value: s + "px" });
+    Object.entries(TOKENS.radius).forEach(([n, v]) => dt.fjall.radius[n] = { $type: "dimension", $value: typeof v === "number" ? v + "px" : v });
+    Object.entries(TOKENS.motion).forEach(([n, [d, e]]) => dt.fjall.motion[n] = { $type: "transition", $value: { duration: d + "ms", timingFunction: e } });
+    TOKENS.type.forEach(([n, s, w, t]) => dt.fjall.typography[n] = { $type: "typography", $value: { fontFamily: "Inter", fontSize: s + "px", fontWeight: w, letterSpacing: t, lineHeight: 1.25 } });
+    out = JSON.stringify(dt, null, 2);
+  }
+  $("#tokOut").innerHTML = `<button class="copy" onclick="navigator.clipboard.writeText(this.parentElement.dataset.raw)">Copy</button>` + out.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  $("#tokOut").dataset.raw = out;
+}
+function renderChecklist() {
+  const L = [
+    ["Colour", ["Only role tokens, no raw hex in code", "Max one accent + one semantic colour on screen", "Lingon only on destructive or error", "Verified in Night and Day"]],
+    ["Layout", ["Interactive elements inside r ≤ 150", "Nothing essential under the rim band", "Status y20 · hint y324 · overline y46", "Rows follow the Fisheye widths (284 / 258 / 226)"]],
+    ["Type", ["Only the 7 type roles", "Tabular figures on every number", "Uppercase only for caption / overline", "Long text truncates, no wrapping in rows"]],
+    ["Interaction", ["Every control reachable by rim + tap", "Focus = 1.5 Moss border + surface-2", "Hit areas ≥ 44 px", "Destructive = hold 600 ms"]],
+    ["Motion", ["Durations from motion tokens only", "Rim detent plays a haptic tick", "Reduce-motion path implemented", "Hint fades after 3 s of use"]],
+    ["Assets", ["Icons from the Fjäll set (24 grid, 1.75)", "Icons rasterised per size, not scaled", "App pebbles use their tint only on Home", "Screen ID in the code matches this page"]]
+  ];
+  $("#checklist").innerHTML = L.map(([t, items]) => `<div class="card"><div class="t-cap" style="margin-bottom:12px; color:var(--moss)">${t}</div>${items.map(i => `<div style="display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; color:var(--t2)"><span style="width:16px; height:16px; border-radius:5px; border:1.5px solid var(--t3); flex:none; margin-top:1px"></span>${i}</div>`).join("")}</div>`).join("");
+}
+function renderScreens() {
+  document.querySelectorAll(".screens[data-group]").forEach(el => {
+    const g = el.dataset.group;
+    el.innerHTML = SCREENS.filter(s => s.g === g).map(s => `<figure class="shot">${dev(s.fn(), el.classList.contains("tight") ? "scaled" : "")}
+      <figcaption><span>${s.id}</span><b>${s.t}</b><p>${s.d}</p></figcaption></figure>`).join("");
+  });
+}
+function renderCover() {
+  const pos = [[0, 30, 1, "NP-01"], [300, 0, .62, "HOM-01"], [330, 250, .58, "SET-02"]];
+  $("#coverDevices").innerHTML = pos.map(([x, y, s, id]) => `<div class="bezel" style="left:${x}px; top:${y}px; transform:scale(${s}); transform-origin:top left"><div class="dev">${SCREENS.find(q => q.id === id).fn()}</div></div>`).join("");
+  $("#moodOffice").innerHTML = `<div style="position:absolute; inset:0; background:
+     linear-gradient(180deg, transparent 58%, rgba(0,0,0,.05) 58%),
+     repeating-linear-gradient(90deg, #C9A979 0 3px, #C29F6E 3px 7px, #CFB084 7px 12px)"></div>
+    <div style="position:absolute; left:0; right:0; top:0; height:58%; background:linear-gradient(160deg,#EFEAE0,#DCD5C7)"></div>
+    <div style="position:absolute; left:18%; top:40%; width:38%; aspect-ratio:1; border-radius:50%; background:#2A2F2D; box-shadow:0 18px 30px -12px rgba(0,0,0,.45); display:grid; place-items:center"><div style="width:84%; aspect-ratio:1; border-radius:50%; background:#121615; display:grid; place-items:center; color:#8DB596">${ic("rings", 40, 1.4)}</div></div>
+    <div style="position:absolute; right:14%; top:44%; width:20%; aspect-ratio:.9; border-radius:8px 8px 40% 40%; background:#ECEEE8; box-shadow:0 12px 20px -10px rgba(0,0,0,.35)"></div>
+    <div style="position:absolute; right:8%; top:12%; color:#4C7A5A; transform:rotate(-12deg)">${ic("pine", 64, 1.2)}</div>
+    <div class="lbl">Nordic office · Kontor<div class="dots"><i style="background:#C9A979"></i><i style="background:#ECEEE8"></i><i style="background:#4C7A5A"></i></div></div>`;
+}
+function renderToc() {
+  let last = "", html = "";
+  document.querySelectorAll("section.slide").forEach((s, i) => {
+    if (s.dataset.grp !== last) { html += `<div class="grp">${s.dataset.grp}</div>`; last = s.dataset.grp; }
+    html += `<a href="#${s.id}"><span>${String(i).padStart(2, "0")}</span>${s.dataset.toc}</a>`;
+  });
+  $("#toc").innerHTML = html;
+  const links = [...document.querySelectorAll("#toc a")];
+  new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + e.target.id)); }), { rootMargin: "-40% 0px -55% 0px" })
+    .observe ? document.querySelectorAll("section.slide").forEach(s => window.__io.observe(s)) : 0;
+}
+
+function renderAll() {
+  $("#brandIcon").innerHTML = ic("fjall", 22);
+  document.querySelectorAll("[data-ic]").forEach(e => e.innerHTML = ic(e.dataset.ic, +e.dataset.s || 16));
+  renderPrinciples(); renderSwatches(); renderColorRules(); renderType(); renderGeometry(); renderSpace(); renderIcons(); renderAppIcons();
+  renderComponents(); renderStates(); renderMotion(); renderNav(); renderScreens(); renderRedlines(); renderA11y(); renderTokens(); renderChecklist(); renderCover();
+}
+
+/* boot */
+window.__io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) document.querySelectorAll("#toc a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + e.target.id)); }), { rootMargin: "-40% 0px -55% 0px" });
+document.querySelectorAll("#modeSwitch button").forEach(b => b.onclick = () => applyMode(b.dataset.mode));
+document.querySelectorAll("#tokTabs button").forEach(b => b.onclick = () => renderTokens(b.dataset.k));
+applyMode("night");
+renderToc();
+</script>
+</body>
+</html>
