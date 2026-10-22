@@ -1,6 +1,41 @@
 # DialOS — Engineering & Release Roadmap (`v0.1.0` → `v1.0.0`)
 
-Every milestone below ships with **atomic Conventional Commits**, **100% unit + headless PNG snapshot test coverage** (`AddressSanitizer` + `UBSan`, $\le 24.0\text{ MB}$ RAM), and an annotated **Semantic Version git tag**.
+Every milestone below ships with **atomic Conventional Commits**, **100% unit + headless PNG snapshot + live interactive UI state verification** (`AddressSanitizer` + `UBSan`, $\le 24.0\text{ MB}$ RAM), a **native 60 FPS interactive desktop emulator (`make sim && ./build/dialos-sim`)**, and an annotated **Semantic Version git tag**.
+
+---
+
+## Local Interactive Emulator & Testing Environment Setup
+
+### 1. Zero-Dependency Build & Live Interactive Window (macOS / Linux)
+- **macOS (Out of the Box):** Uses the system Apple Clang compiler and native macOS `Cocoa` + `CoreGraphics` frameworks (`-framework Cocoa -framework CoreGraphics -lz`). No third-party packages are required to open the live `360×360` interactive simulator window.
+- **Optional SDL2 Backend (macOS / Linux):** If `SDL2` is installed (`brew install sdl2` or `apt install libsdl2-dev`), `Makefile` also supports `-DDIAL_HAS_SDL2`.
+
+### 2. Running the Live 60 FPS Interactive C Emulator
+```sh
+make sim
+./build/dialos-sim
+```
+- **Mouse / Touch Controls in the `360×360` Window:**
+  - **Single-click `NP-01`:** Opens/closes `NP-02` (Quick Actions). Click any of the 4 bottom-arc pucks (`heart`, `shuffle`, `playlist`, `lyrics`) to toggle state or navigate.
+  - **Double-click (`< 260 ms`) `NP-01`:** Toggles Play / Pause (`33.33 RPM` vinyl rotation).
+  - **Drag inner vinyl ring (`24px <= r <= 54px`) OR Hold `300 ms` on vinyl & rotate:** Scrubs track position (`0°–359°` `DIAL_VINYL_SEEK_R = 38px`) in real time.
+  - **Trace outer rim (`r >= 150px`):** Adjusts Volume (`NP-05` HUD on Now Playing) or steps through Fisheye Rim Lists / Home Carousel (`15°` detents, `3×` fast-spin).
+  - **Pull down from top edge (`y < 40px`):** Opens `CC-01` (Control Center). Click any `66px` puck to toggle `Wi-Fi` (`fjord`), `Bluetooth` (`fjord`), `Mode` (`moss`), `Gain Low/High` (`cloudberry`), `USB Charge` (`moss`), or `Touch Lock` (`CC-02`, hold center `600 ms` to unlock).
+  - **Swipe up from bottom (`y > 320px`):** Unlocks `LCK-01/02` to `HOM-01` or opens `NP-04` (Track Details) from `NP-01`.
+- **Keyboard Shortcuts (Hardware Button & Debug Emulation):**
+  - `Space`: Hardware `KEY_PLAYPAUSE` (Play / Pause)
+  - `Up` / `Down`: Hardware `KEY_VOLUP` / `KEY_VOLDOWN` (`±2` volume steps + Volume HUD)
+  - `Escape`: Hardware `KEY_POWER` (Lock / Wake screen)
+  - `Left` / `Right` (or `[` / `]`): Cycle through all registered screen IDs for live inspection
+  - `D`: Toggle between **Polar Night** (`DIAL_MODE_NIGHT`) and **Birch Day** (`DIAL_MODE_DAY`) palettes
+  - `S`: Save a live PNG screenshot of the current window to `/tmp/dialos_live.png`
+
+### 3. Mandatory Pre-Commit Verification Loop (`make test`)
+Before any C code is committed, `make test` MUST pass all four gates under `AddressSanitizer` + `UndefinedBehaviorSanitizer`:
+1. **`./build/test_polar_gestures`**: Polar math (`0°–359°`) and Gesture FSM unit + 1,000-step fuzz suite.
+2. **`./build/test_draw_primitives`**: 2D AA primitives, all 70 Fjäll vector icons, `.train` marquee, and `<= 24.0 MB` RAM budget check.
+3. **`./build/test_screens_*`**: Headless render & locked UX pixel-invariant verification across Night and Day modes.
+4. **`./build/test_ui_interaction`**: End-to-end interactive UI simulation driving real touch/drag/tap/hold sequences into the live app controller (`dial_app_t`) and verifying that user interactions mutate both app state and rendered framebuffer pixels.
 
 ---
 

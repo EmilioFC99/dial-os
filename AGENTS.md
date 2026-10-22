@@ -104,9 +104,9 @@ Do not regress any of the following locked design specifications:
      - `docs(<scope>): ...` — documentation, design sheet, or README updates
      - `refactor(<scope>): ...` — internal restructuring without behavior change
      - `build:` / `ci:` / `chore:` — toolchain, GitHub Actions, or repo maintenance
-2. **Zero Code Ships Without Tests (TDD Gate):**
-   - **Never commit or merge C implementation code without accompanying automated tests** (`tests/`).
-   - Every logic module (polar math, gesture FSM, Bluetooth cache, list physics) requires unit tests, and every UI screen (`SYS`, `LCK`, `HOM`, `CC`, `NP`, `LIB`, `FIL`, `MOD`, `SET`, `GAM`, `OVL`) requires headless snapshot verification (`--headless --screen <ID>`) passing under `AddressSanitizer` + `UndefinedBehaviorSanitizer`.
+2. **Zero Code Ships Without Tests & Live Interactive UI Verification (TDD Gate):**
+   - **Never commit or merge C implementation code without accompanying automated unit, snapshot, AND interactive UI tests** (`tests/`).
+   - Every logic module (polar math, gesture FSM, Bluetooth cache, list physics) requires unit tests; every UI screen (`SYS`, `LCK`, `HOM`, `CC`, `NP`, `LIB`, `FIL`, `MOD`, `SET`, `GAM`, `OVL`) requires headless snapshot verification (`--headless --screen <ID>`); and every interactive flow (scrubbing `r = 38px` vinyl seek ring, tapping `CC-01` pucks, rim scrolling lists, `600 ms` hold unlock/delete) MUST be verified end-to-end in `tests/test_ui_interaction.c` and playable live in the native macOS Cocoa / SDL2 window (`make sim && ./build/dialos-sim`) passing under `AddressSanitizer` + `UndefinedBehaviorSanitizer`.
 3. **Tagged Releases & Deployments:**
    - Every release or deployment milestone MUST be tagged with an annotated Semantic Version tag (`git tag -a vX.Y.Z -m "..."`).
 4. **Open-Source Showcase & GitHub Pages Sync:**

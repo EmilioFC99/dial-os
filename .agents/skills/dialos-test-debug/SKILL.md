@@ -9,10 +9,10 @@ description: >-
 
 Use this workflow to build, test, and visually debug DialOS on macOS before deploying to the Snowsky DISC hardware.
 
-## 1. Three-Tier Verification Loop
-Every new feature or bugfix must pass three checks on macOS:
+## 1. Four-Tier Verification Loop (Mandatory Before Every Commit)
+Every new feature or bugfix must pass four checks on macOS:
 
-### Tier A: Polar Math & Gesture FSM Unit Tests (`make test`)
+### Tier A: Polar Math & Gesture FSM Unit Tests (`./build/test_polar_gestures`)
 Test the core state machines without opening a window:
 - **Inner Vinyl Seek Ring (`r = 38px`, `24px <= r <= 54px`):**
   - Verify `atan2(x - 180, -(y - 180))` maps `(180, 142)` → `0° (0.00)`, `(218, 180)` → `90° (0.25)`, `(180, 218)` → `180° (0.50)`, `(142, 180)` → `270° (0.75)`.
@@ -23,7 +23,16 @@ Test the core state machines without opening a window:
 - **Outer Rim Detent (`r >= 150px`):**
   - Verify every `15°` (`DIAL_DETENT_DEG`) of rotation increments/decrements list focus by `1` (or `3` when angular velocity `> 180°/s`) and triggers an `8 ms` haptic tick.
 
-### Tier B: Headless Framebuffer Snapshot Comparison
+### Tier B: End-to-End Interactive UI Simulation (`./build/test_ui_interaction` & Live Window)
+1. **Automated Interactive Flows (`./build/test_ui_interaction`):**
+   - Drive real `dial_touch_event_t` sequences into the live application state machine (`dial_app_t`) and render the resulting framebuffer after each gesture:
+     - Unlock `LCK-02` via bottom swipe-up → lands on `HOM-01`.
+     - Trace outer rim on `HOM-01` → rotates focused app pebble (`HOM-01` → `HOM-02`), tap center to open screen.
+     - On `NP-01`: drag `r = 38px` inner vinyl seek ring → mutates live `seek_progress` and moves the rendered `moss` knob on screen; single-tap → opens `NP-02`; tap `heart` puck (`234°`) → toggles favorite state and puck tint; pull down top edge (`y < 40`) → opens `CC-01`; tap `gain` puck → swaps `gain_low` ↔ `gain_high` (`cloudberry`); tap `lock` puck → opens `CC-02` and hold center `600 ms` → fills unlock arc and unlocks.
+2. **Live Desktop Window (`make sim && ./build/dialos-sim`):**
+   - Runs a native macOS `Cocoa` / `CoreGraphics` (or `SDL2`) `360×360` interactive window at `60 FPS` with mouse touch emulation and hardware button hotkeys (`Space`, `Up`/`Down`, `Left`/`Right`, `D` for Night/Day, `S` for screenshot).
+
+### Tier C: Headless Framebuffer Snapshot Comparison
 The simulator binary must support a headless CLI flag:
 ```sh
 ./build/dialos-sim --headless --screen <SCREEN_ID> --mode <night|day> --out /tmp/<SCREEN_ID>.png
@@ -32,13 +41,13 @@ The simulator binary must support a headless CLI flag:
 2. Call `read_file` on `/tmp/<SCREEN_ID>.png` to visually inspect the rendered C framebuffer.
 3. Verify zero bezel clipping outside `r = 180px`, correct token colors, and exact alignment with [`assets/nordic/fjall-design-system.html`](../../assets/nordic/fjall-design-system.html).
 
-### Tier C: AddressSanitizer, UBSan & 24 MB RAM Budget Gate
-Compile the simulator/test binary with sanitizers enabled:
+### Tier D: AddressSanitizer, UBSan & 24 MB RAM Budget Gate
+Compile the simulator/test binaries with sanitizers enabled:
 ```sh
 clang -O1 -g -fsanitize=address,undefined -Wall -Wextra -Werror ...
 ```
 - Run through a 1,000-step automated navigation & rotary fuzz test.
-- Assert zero memory leaks, zero out-of-bounds framebuffer writes (`360×360` bounds check), and total heap allocation `<= 24.0 MB`.
+- Assert zero memory leaks, zero out-of-bounds framebuffer writes (`360×360` bounds check), and total heap/arena allocation `<= 24.0 MB`.
 
 ## 2. Commit & Release Gate
 1. **Never ship code without tests:** Every `feat` or `fix` commit touching C code must include or update its corresponding test in `tests/` and pass `make test`.
