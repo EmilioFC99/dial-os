@@ -1,4 +1,5 @@
 #include "dial_screens.h"
+#include "dial_app.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,6 +20,15 @@ static const app_pebble_spec_t G_APPS[6] = {
     { "modes", "Modes",       "modes",  "Player . USB DAC . BT RX",    3 },
     { "set",   "Settings",    "tune",   "Audio . Display . Power",     4 },
     { "games", "Arcade",      "games",  "3 mini-games",                5 }
+};
+
+static const char *G_MODE_ICONS[6] = {
+    "mode_player",
+    "mode_usbdac",
+    "mode_transport",
+    "mode_btrx",
+    "mode_airplay",
+    "mode_transfer"
 };
 
 static uint32_t resolve_app_tint(const dial_palette_t *pal, int tint_role) {
@@ -64,19 +74,23 @@ static void draw_np_base(dial_fb_t *fb,
                          bool dim,
                          bool show_volume_arc,
                          uint32_t tick_ms) {
-    float spin_deg = dim ? 0.0f : (float)(tick_ms % 1800) * 0.2f;
+    const dial_app_t *app = dial_app_get_state();
+    float spin_deg = (!dim && app->is_playing) ? (float)(tick_ms % 1800) * 0.2f : 0.0f;
     dial_draw_art(fb, pal, DIAL_ART_FJORD, DIAL_CENTER_X, DIAL_CENTER_Y, 360, true, spin_deg);
 
     if (!dim) {
         /* Locked Rule #2: Inner vinyl circle progress & seek ring (r = 38px, 0°=0% -> 359°=99%) */
-        dial_draw_vinyl_seek_ring(fb, pal, 0.41f);
+        dial_draw_vinyl_seek_ring(fb, pal, app->seek_progress);
     }
 
     if (show_volume_arc) {
-        dial_draw_rim_arc(fb, pal, 145.0f, 35.0f, 0.82f, pal->moss,
+        float vol_01 = (float)app->volume / 100.0f;
+        dial_draw_rim_arc(fb, pal, 145.0f, 35.0f, vol_01, pal->moss,
                           (float)DIAL_RIM_ARC_R, 4.0f, true, false, true);
         if (!dim) {
-            dial_draw_text(fb, "82", 316, 172, 11, pal->moss, 255, false);
+            char vol_buf[16];
+            snprintf(vol_buf, sizeof(vol_buf), "%d", app->volume);
+            dial_draw_text(fb, vol_buf, 316, 172, 11, pal->moss, 255, false);
         }
     }
 
@@ -104,11 +118,9 @@ static void render_lck_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tic
     dial_draw_clear(fb, pal->bg);
     dial_draw_horizon(fb, pal);
 
-    /* Top battery indicator */
     dial_draw_icon(fb, DIAL_ICON_BATTERY, 152.0f, 34.0f, 16.0f, 1.75f, pal->text_2, 240);
     dial_draw_text(fb, "82%", 174, 36, 12, pal->text_2, 240, false);
 
-    /* Date overline + 64px display clock + idle status */
     dial_draw_text(fb, "TUESDAY . 22 OCT", DIAL_CENTER_X, 86, 11, pal->text_3, 255, true);
     dial_draw_text(fb, "21:45", DIAL_CENTER_X, 112, 52, pal->text_1, 255, true);
     dial_draw_text(fb, "Nothing playing", DIAL_CENTER_X, 184, 13, pal->text_2, 255, true);
@@ -119,13 +131,12 @@ static void render_lck_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tic
 
 /* ── 3. LCK-02: Lock · Playing (Full-Bleed Spinning Cover) ── */
 static void render_lck_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
-    (void)tick_ms;
+    const dial_app_t *app = dial_app_get_state();
+    float spin_deg = app->is_playing ? (float)(tick_ms % 1800) * 0.2f : 0.0f;
+
     dial_draw_clear(fb, pal->bg);
+    dial_draw_art(fb, pal, DIAL_ART_FJORD, DIAL_CENTER_X, DIAL_CENTER_Y, 360, true, spin_deg);
 
-    /* Locked Rule #1: 360x360 full-bleed spinning art on LCK-02 */
-    dial_draw_art(fb, pal, DIAL_ART_FJORD, DIAL_CENTER_X, DIAL_CENTER_Y, 360, true, 0.0f);
-
-    /* Dark bottom readability gradient for floating text and transport controls */
     for (int y = 180; y < DIAL_SCREEN_HEIGHT; ++y) {
         uint8_t a = (uint8_t)(((y - 180) * 210) / 180);
         for (int x = 0; x < DIAL_SCREEN_WIDTH; ++x) {
@@ -133,20 +144,16 @@ static void render_lck_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tic
         }
     }
 
-    /* Outer rim progress arc (-140° to +140°, v = 0.41, r = 168px) */
-    dial_draw_rim_arc(fb, pal, -140.0f, 140.0f, 0.41f, pal->moss, 168.0f, 3.5f, true, false, true);
-
-    /* Status bar in light text */
+    dial_draw_rim_arc(fb, pal, -140.0f, 140.0f, app->seek_progress, pal->moss, 168.0f, 3.5f, true, false, true);
     dial_draw_status_bar(fb, pal, "21:45", 82, 0xECEEE8u);
 
-    /* Floating transparent track title & artist (zero card box) */
     dial_draw_text(fb, "Teardrop", DIAL_CENTER_X, 212, 17, 0xECEEE8u, 255, true);
     dial_draw_text(fb, "Massive Attack", DIAL_CENTER_X, 234, 13, 0xECEEE8u, 200, true);
 
-    /* 3 bottom transport controls (prev, 48px filled moss pause button, next) */
     dial_draw_icon(fb, DIAL_ICON_PREV, 112.0f, 275.0f, 22.0f, 1.75f, 0xECEEE8u, 220);
     dial_draw_circle_fill(fb, 180.0f, 286.0f, 24.0f, pal->moss, 255);
-    dial_draw_icon(fb, DIAL_ICON_PAUSE, 170.0f, 276.0f, 20.0f, 1.75f, pal->on_accent, 255);
+    dial_draw_icon(fb, app->is_playing ? DIAL_ICON_PAUSE : DIAL_ICON_PLAY,
+                   170.0f, 276.0f, 20.0f, 1.75f, pal->on_accent, 255);
     dial_draw_icon(fb, DIAL_ICON_NEXT, 226.0f, 275.0f, 22.0f, 1.75f, 0xECEEE8u, 220);
 
     dial_draw_hint(fb, pal, "up", "Swipe up to unlock", 0xECEEE8u);
@@ -164,7 +171,6 @@ static void render_home_carousel(dial_fb_t *fb, const dial_palette_t *pal, int f
     const app_pebble_spec_t *prev2     = &G_APPS[(focus_idx + 4) % 6];
     const app_pebble_spec_t *next2     = &G_APPS[(focus_idx + 2) % 6];
 
-    /* Outer neighbor pebbles along upper arc */
     float x = 0.0f, y = 0.0f;
     dial_polar_to_xy(-98.0f, 140.0f, &x, &y);
     draw_app_pebble(fb, pal, prev2, x, y - 40.0f, 32.0f, false, 115);
@@ -178,14 +184,11 @@ static void render_home_carousel(dial_fb_t *fb, const dial_palette_t *pal, int f
     dial_polar_to_xy(62.0f, 136.0f, &x, &y);
     draw_app_pebble(fb, pal, next1, x, y - 40.0f, 44.0f, false, 230);
 
-    /* Center hero pebble (104px diameter at cx=180, cy=118) with Moss focus ring */
     draw_app_pebble(fb, pal, focus_app, 180.0f, 118.0f, 104.0f, true, 255);
 
-    /* App Title & Subtext */
     dial_draw_text(fb, focus_app->name, DIAL_CENTER_X, 192, 20, pal->text_1, 255, true);
     dial_draw_text(fb, focus_app->sub,  DIAL_CENTER_X, 218, 12, pal->text_2, 255, true);
 
-    /* Contextual action pills at y = 250 */
     if (focus_idx == 0) {
         dial_draw_pill(fb, pal, 136, 248, "pause", "Pause", true);
         dial_draw_pill(fb, pal, 224, 248, "next",  "Next",  false);
@@ -197,7 +200,6 @@ static void render_home_carousel(dial_fb_t *fb, const dial_palette_t *pal, int f
         dial_draw_pill(fb, pal, 180, 248, NULL, "Open", true);
     }
 
-    /* 6 Pagination dots at y = 300 */
     int dot_x = 152;
     for (int i = 0; i < 6; ++i) {
         float w = (i == focus_idx) ? 16.0f : 5.0f;
@@ -210,10 +212,11 @@ static void render_home_carousel(dial_fb_t *fb, const dial_palette_t *pal, int f
     dial_draw_circle_mask(fb);
 }
 
-/* ── 4. HOM-01: Home · Carousel (Now Playing Focused) ── */
+/* ── 4. HOM-01: Home · Carousel ── */
 static void render_hom_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     (void)tick_ms;
-    render_home_carousel(fb, pal, 0);
+    const dial_app_t *app = dial_app_get_state();
+    render_home_carousel(fb, pal, app->home_focus_idx % 6);
 }
 
 /* ── 5. HOM-02: Home · Carousel (Library Focused) ── */
@@ -225,18 +228,23 @@ static void render_hom_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tic
 /* ── 6. HOM-03: Home · 6-App Radial Wheel ── */
 static void render_hom_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     (void)tick_ms;
+    const dial_app_t *app = dial_app_get_state();
+    int focus = app->home_focus_idx % 6;
+
     dial_draw_clear(fb, pal->bg);
 
     for (int i = 0; i < 6; ++i) {
         float px = 0.0f, py = 0.0f;
         dial_polar_to_xy((float)(i * 60), 110.0f, &px, &py);
-        draw_app_pebble(fb, pal, &G_APPS[i], px, py, 60.0f, (i == 0), 255);
+        draw_app_pebble(fb, pal, &G_APPS[i], px, py, 60.0f, (i == focus), 255);
     }
 
-    /* Top outer rim indicator arc (-16° to +16°, r = 170px, w = 4px) */
-    dial_draw_arc_aa(fb, 180.0f, 180.0f, 170.0f, -16.0f, 16.0f, 4.0f, pal->moss, 255, true, false);
+    float center_deg = (float)(focus * 60);
+    dial_draw_arc_aa(fb, 180.0f, 180.0f, 170.0f,
+                     center_deg - 16.0f, center_deg + 16.0f,
+                     4.0f, pal->moss, 255, true, false);
 
-    dial_draw_text(fb, "Now Playing", DIAL_CENTER_X, 162, 17, pal->text_1, 255, true);
+    dial_draw_text(fb, G_APPS[focus].name, DIAL_CENTER_X, 162, 17, pal->text_1, 255, true);
     dial_draw_text(fb, "TAP TO OPEN", DIAL_CENTER_X, 186, 11, pal->text_3, 255, true);
     dial_draw_circle_mask(fb);
 }
@@ -248,7 +256,7 @@ static void draw_cc_puck(dial_fb_t *fb,
                          float cy,
                          const char *icon_name,
                          uint32_t active_tone_rgb) {
-    const float r = (float)DIAL_CC_PUCK_DIAMETER * 0.5f; /* 33px (66px diameter) */
+    const float r = (float)DIAL_CC_PUCK_DIAMETER * 0.5f;
     bool lit = (active_tone_rgb != 0);
     uint32_t bg   = lit ? dial_color_lerp(pal->surface_1, active_tone_rgb, 46) : pal->surface_1;
     uint32_t ring = lit ? dial_color_lerp(pal->surface_1, active_tone_rgb, 192) : pal->line;
@@ -257,31 +265,36 @@ static void draw_cc_puck(dial_fb_t *fb,
 
     dial_draw_circle_fill(fb, cx, cy, r, bg, 255);
     dial_draw_circle_stroke(fb, cx, cy, r - 0.5f, rw, ring, 255);
-    /* Locked Rule #5: Icon only inside 66px puck — zero text labels */
     dial_draw_icon_by_name(fb, icon_name, cx - 13.0f, cy - 13.0f, 26.0f, 1.75f, fg, 255);
 }
 
 static void render_cc_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     (void)tick_ms;
+    const dial_app_t *app = dial_app_get_state();
+
     dial_draw_clear(fb, pal->bg);
     dial_draw_status_bar(fb, pal, "21:45", 82, 0);
 
-    /* Left brightness arc (birch) & Right volume arc (moss) */
-    dial_draw_rim_arc(fb, pal, 325.0f, 215.0f, 0.70f, pal->birch, (float)DIAL_RIM_ARC_R, 4.0f, true, false, true);
-    dial_draw_rim_arc(fb, pal, 145.0f, 35.0f,  0.82f, pal->moss,  (float)DIAL_RIM_ARC_R, 4.0f, true, false, true);
+    dial_draw_rim_arc(fb, pal, 325.0f, 215.0f, (float)app->brightness / 100.0f,
+                      pal->birch, (float)DIAL_RIM_ARC_R, 4.0f, true, false, true);
+    dial_draw_rim_arc(fb, pal, 145.0f, 35.0f,  (float)app->volume / 100.0f,
+                      pal->moss,  (float)DIAL_RIM_ARC_R, 4.0f, true, false, true);
     dial_draw_icon(fb, DIAL_ICON_SUN,    22.0f,  171.0f, 18.0f, 1.75f, pal->birch, 255);
     dial_draw_icon(fb, DIAL_ICON_VOLUME, 320.0f, 171.0f, 18.0f, 1.75f, pal->moss,  255);
 
-    /* Locked Rule #5: 3x2 grid of 66px circular pucks (left=60, top=98, width=240, row-gap=22) */
     const float col_cx[3] = { 93.0f, 180.0f, 267.0f };
     const float row_cy[2] = { 131.0f, 219.0f };
 
-    draw_cc_puck(fb, pal, col_cx[0], row_cy[0], "wifi",        pal->fjord);
-    draw_cc_puck(fb, pal, col_cx[1], row_cy[0], "bluetooth",   pal->fjord);
-    draw_cc_puck(fb, pal, col_cx[2], row_cy[0], "mode_player", pal->moss);
-    draw_cc_puck(fb, pal, col_cx[0], row_cy[1], "gain_high",   pal->cloudberry);
-    draw_cc_puck(fb, pal, col_cx[1], row_cy[1], "usb_charge",  0);
-    draw_cc_puck(fb, pal, col_cx[2], row_cy[1], "lock",        0);
+    /* Locked Rule #5: 3x2 icon-only pucks reflecting live toggle states */
+    const char *mode_ic = G_MODE_ICONS[app->active_mode_idx % 6];
+    const char *gain_ic = app->high_gain ? "gain_high" : "gain_low";
+
+    draw_cc_puck(fb, pal, col_cx[0], row_cy[0], "wifi",       app->wifi_on    ? pal->fjord      : 0);
+    draw_cc_puck(fb, pal, col_cx[1], row_cy[0], "bluetooth",  app->bt_on      ? pal->fjord      : 0);
+    draw_cc_puck(fb, pal, col_cx[2], row_cy[0], mode_ic,      pal->moss);
+    draw_cc_puck(fb, pal, col_cx[0], row_cy[1], gain_ic,      app->high_gain  ? pal->cloudberry : 0);
+    draw_cc_puck(fb, pal, col_cx[1], row_cy[1], "usb_charge", app->usb_charge ? pal->moss       : 0);
+    draw_cc_puck(fb, pal, col_cx[2], row_cy[1], "lock",       app->touch_locked ? pal->moss     : 0);
 
     dial_draw_hint(fb, pal, NULL, "Tap . toggle   Hold . menu", 0);
     dial_draw_circle_mask(fb);
@@ -290,12 +303,16 @@ static void render_cc_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
 /* ── 8. CC-02: Touch Lock Shield (600ms Hold Unlock) ── */
 static void render_cc_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     (void)tick_ms;
+    const dial_app_t *app = dial_app_get_state();
     dial_draw_clear(fb, pal->bg);
     dial_draw_status_bar(fb, pal, "21:45", 82, 0);
 
     dial_draw_circle_fill(fb, 180.0f, 152.0f, 52.0f, pal->surface_1, 255);
     dial_draw_circle_stroke(fb, 180.0f, 152.0f, 52.0f, 3.0f, pal->surface_3, 255);
-    dial_draw_arc_aa(fb, 180.0f, 152.0f, 52.0f, 0.0f, 150.0f, 3.0f, pal->moss, 255, true, false);
+    float arc_deg = 360.0f * app->unlock_hold_progress;
+    if (arc_deg > 1.0f) {
+        dial_draw_arc_aa(fb, 180.0f, 152.0f, 52.0f, 0.0f, arc_deg, 3.0f, pal->moss, 255, true, false);
+    }
     dial_draw_icon(fb, DIAL_ICON_LOCK, 160.0f, 132.0f, 40.0f, 1.75f, pal->moss, 255);
 
     dial_draw_text(fb, "Screen locked", DIAL_CENTER_X, 236, 17, pal->text_1, 255, true);
@@ -312,31 +329,29 @@ static void render_np_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
 
 /* ── 10. NP-02: Quick Actions · Floating Metadata & Bottom Arc ── */
 static void render_np_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
+    const dial_app_t *app = dial_app_get_state();
     dial_draw_clear(fb, pal->bg);
     draw_np_base(fb, pal, true, true, tick_ms);
     dial_draw_scrim(fb, pal, DIAL_SCRIM_ALPHA);
 
-    /* Top overline: QUICK ACTIONS */
     dial_draw_header(fb, pal, "Quick actions", "", 46);
 
-    /* Locked Rule #3: Floating Song Title, Artist, Album on transparent background (no box) */
     dial_draw_text(fb, "Teardrop",         DIAL_CENTER_X, 108, 22, pal->text_1, 255, true);
     dial_draw_text(fb, "Massive Attack",   DIAL_CENTER_X, 138, 13, pal->moss,   255, true);
     dial_draw_text(fb, "Mezzanine . 1998", DIAL_CENTER_X, 158, 12, pal->text_2, 255, true);
 
-    /* Bottom Arc (r = 118px) at polar angles 234°, 198°, 162°, 126°: 4 circular 52px pucks */
-    static const struct {
+    const struct {
         float       deg;
         const char *icon;
         bool        active;
     } qa_pucks[4] = {
-        { 234.0f, "heart",    true  },
-        { 198.0f, "shuffle",  false },
-        { 162.0f, "playlist", false },
-        { 126.0f, "lyrics",   false }
+        { 234.0f, "heart",    app->is_favorited },
+        { 198.0f, "shuffle",  app->is_shuffled  },
+        { 162.0f, "playlist", false             },
+        { 126.0f, "lyrics",   false             }
     };
 
-    const float puck_r = (float)DIAL_QA_PUCK_DIAMETER * 0.5f; /* 26px */
+    const float puck_r = (float)DIAL_QA_PUCK_DIAMETER * 0.5f;
     for (int i = 0; i < 4; ++i) {
         float px = 0.0f, py = 0.0f;
         dial_polar_to_xy(qa_pucks[i].deg, (float)DIAL_QA_ARC_RADIUS, &px, &py);
@@ -355,21 +370,20 @@ static void render_np_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
 /* ── 11. NP-03: Synced Lyrics (.lrc) ── */
 static void render_np_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     (void)tick_ms;
+    const dial_app_t *app = dial_app_get_state();
     dial_draw_clear(fb, pal->bg);
     dial_draw_art(fb, pal, DIAL_ART_FJORD, DIAL_CENTER_X, DIAL_CENTER_Y, 360, true, 0.0f);
     dial_draw_scrim(fb, pal, DIAL_SCRIM_ALPHA);
-    dial_draw_rim_arc(fb, pal, 145.0f, 35.0f, 0.82f, pal->moss, (float)DIAL_RIM_ARC_R, 4.0f, true, false, true);
+    dial_draw_rim_arc(fb, pal, 145.0f, 35.0f, (float)app->volume / 100.0f,
+                      pal->moss, (float)DIAL_RIM_ARC_R, 4.0f, true, false, true);
 
-    /* Mini track header */
     dial_draw_art(fb, pal, DIAL_ART_FJORD, 118, 55, 34, false, 0.0f);
     dial_draw_text(fb, "Teardrop",       144, 42, 13, pal->text_1, 255, false);
     dial_draw_text(fb, "Massive Attack", 144, 58, 11, pal->text_2, 255, false);
 
-    /* 5 Synced Lyric Lines (active line split between sung Moss and unsung text_1) */
     dial_draw_text(fb, "Love, love is a verb",       DIAL_CENTER_X, 108, 13, pal->text_3, 255, true);
     dial_draw_text(fb, "Love is a doing word",       DIAL_CENTER_X, 136, 13, pal->text_2, 255, true);
 
-    /* Active line: "Fearless on my" (Moss) + " breath" (text_1) */
     const char *sung   = "Fearless on my";
     const char *unsung = " breath";
     int w_sung   = dial_measure_text(sung,   16, 0);
@@ -391,10 +405,8 @@ static void render_np_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
     draw_np_base(fb, pal, true, true, tick_ms);
     dial_draw_scrim(fb, pal, DIAL_SCRIM_ALPHA);
 
-    /* Bottom sheet card */
     dial_draw_round_rect(fb, 34.0f, 58.0f, 292.0f, 286.0f, 28.0f,
                          pal->surface_1, 255, 1.0f, pal->line, 255);
-    /* Sheet grip bar */
     dial_draw_round_rect(fb, 166.0f, 68.0f, 28.0f, 4.0f, 2.0f,
                          pal->surface_3, 255, 0.0f, 0, 0);
 
@@ -402,7 +414,6 @@ static void render_np_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
     dial_draw_text(fb, "Teardrop",                       DIAL_CENTER_X, 102, 20, pal->text_1, 255, true);
     dial_draw_text(fb, "Massive Attack . Mezzanine",     DIAL_CENTER_X, 126, 12, pal->text_2, 255, true);
 
-    /* 3 Metadata chips centered horizontally */
     int w1 = dial_measure_text("FLAC 24/96", 10, 0) + 14;
     int w2 = dial_measure_text("2,842 kbps", 10, 0) + 14;
     int w3 = dial_measure_text("DR 11",      10, 0) + 14;
@@ -411,7 +422,6 @@ static void render_np_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
     dial_draw_chip(fb, pal, cx_start + w1 + 6,      146, "2,842 kbps", 0,         NULL);
     dial_draw_chip(fb, pal, cx_start + w1 + w2 + 12,146, "DR 11",      0,         NULL);
 
-    /* Key-value metadata table */
     static const char *kv[4][2] = {
         { "Track",      "03 / 11" },
         { "Genre",      "Trip-hop" },
@@ -433,17 +443,17 @@ static void render_np_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
 
 /* ── 13. NP-05: Volume HUD (Right-Side Outer Rim Arc Only, Zero Inner Circle) ── */
 static void render_np_05(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
-    /* Locked Rule #4: Do NOT render any inner circle on NP-05 Volume HUD */
+    const dial_app_t *app = dial_app_get_state();
     dial_draw_clear(fb, pal->bg);
     draw_np_base(fb, pal, true, false, tick_ms);
     dial_draw_scrim(fb, pal, DIAL_SCRIM_ALPHA);
 
-    /* Right-side outer rim arc only (r = 166px, w = 6px) */
-    dial_draw_rim_arc(fb, pal, 145.0f, 35.0f, 0.82f, pal->moss,
-                      (float)DIAL_RIM_ARC_R, 6.0f, true, false, true);
+    dial_draw_rim_arc(fb, pal, 145.0f, 35.0f, (float)app->volume / 100.0f,
+                      pal->moss, (float)DIAL_RIM_ARC_R, 6.0f, true, false, true);
 
-    /* Centered hero volume number ("82"), VOLUME caption, and output text ("4.4 mm BAL") */
-    dial_draw_text(fb, "82",     DIAL_CENTER_X, 132, 44, pal->text_1, 255, true);
+    char vol_buf[16];
+    snprintf(vol_buf, sizeof(vol_buf), "%d", app->volume);
+    dial_draw_text(fb, vol_buf,  DIAL_CENTER_X, 132, 44, pal->text_1, 255, true);
     dial_draw_text(fb, "VOLUME", DIAL_CENTER_X, 188, 11, pal->text_3, 255, true);
 
     dial_draw_icon(fb, DIAL_ICON_HEADPHONES, 126.0f, 233.0f, 14.0f, 1.75f, pal->text_2, 255);
@@ -452,8 +462,11 @@ static void render_np_05(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
     dial_draw_circle_mask(fb);
 }
 
-/* ── Diagnostic / Test Screens from Milestone 1 ── */
+/* ── Library Hub (LIB-01) & Diagnostic Screens ── */
 static void render_lib_01_preview(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
+    const dial_app_t *app = dial_app_get_state();
+    size_t focus = (size_t)(app->list_focus_idx >= 0 && app->list_focus_idx < 5 ? app->list_focus_idx : 2);
+
     dial_draw_clear(fb, pal->bg);
     dial_draw_header(fb, pal, "Library", "", 42);
     const dial_rim_row_t rows[5] = {
@@ -463,8 +476,8 @@ static void render_lib_01_preview(dial_fb_t *fb, const dial_palette_t *pal, uint
         { .icon_name = "album",    .title = "Albums",    .value_text = "214" },
         { .icon_name = "genre",    .title = "Genres",    .value_text = "24" }
     };
-    dial_draw_rim_list(fb, pal, rows, 5, 2, 64, tick_ms);
-    dial_draw_scroll_rim(fb, pal, 0.10f, 0.30f);
+    dial_draw_rim_list(fb, pal, rows, 5, focus, 64, tick_ms);
+    dial_draw_scroll_rim(fb, pal, 0.05f + 0.15f * (float)focus, 0.30f);
     dial_draw_circle_mask(fb);
 }
 
@@ -488,7 +501,6 @@ static void render_test_icons(dial_fb_t *fb, const dial_palette_t *pal, uint32_t
 
 /* ── Master Screen Registry ── */
 static const dial_screen_desc_t G_SCREENS[] = {
-    /* Core System, Lock, Home & Control Center (8 screens) */
     { "SYS-00", "core", "Boot",                             render_sys_00 },
     { "LCK-01", "core", "Lock . idle",                      render_lck_01 },
     { "LCK-02", "core", "Lock . playing (Full-Bleed)",      render_lck_02 },
@@ -497,15 +509,11 @@ static const dial_screen_desc_t G_SCREENS[] = {
     { "HOM-03", "core", "App wheel",                        render_hom_03 },
     { "CC-01",  "core", "Control Center . Icon Pucks",      render_cc_01  },
     { "CC-02",  "core", "Touch lock shield",                render_cc_02  },
-
-    /* Now Playing (5 screens) */
     { "NP-01",  "np",   "Now Playing . Pure Vinyl",         render_np_01  },
     { "NP-02",  "np",   "Quick actions . Bottom Arc",       render_np_02  },
     { "NP-03",  "np",   "Synced lyrics",                    render_np_03  },
     { "NP-04",  "np",   "Track details sheet",              render_np_04  },
     { "NP-05",  "np",   "Volume HUD",                       render_np_05  },
-
-    /* Preview / Test screens */
     { "LIB-01",          "lib",  "Library hub",             render_lib_01_preview },
     { "TEST-PRIMITIVES", "test", "Test Primitives",         render_lib_01_preview },
     { "TEST-ICONS",      "test", "Test 70 Icons",           render_test_icons     }

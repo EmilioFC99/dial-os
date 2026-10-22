@@ -24,13 +24,17 @@ typedef struct {
     uint32_t timestamp_ms;
 } dial_touch_event_t;
 
-/* Physical Tactile Hardware Buttons (/dev/input/event1) */
+/* Physical Tactile Hardware Buttons (/dev/input/event1) + Simulator Hotkeys */
 typedef enum {
-    DIAL_KEY_NONE      = 0,
-    DIAL_KEY_POWER     = 1, /* GPIO_PA02: Short=Sleep/Wake, Long=Power Sheet */
-    DIAL_KEY_PLAYPAUSE = 2, /* GPIO_PA03: 1x=Play/Pause, 2x=Next, 3x=Prev */
-    DIAL_KEY_VOLUP     = 3, /* GPIO_PA04: +1 step / 10 steps/s hold */
-    DIAL_KEY_VOLDOWN   = 4  /* GPIO_PA05: -1 step / 10 steps/s hold */
+    DIAL_KEY_NONE         = 0,
+    DIAL_KEY_POWER        = 1, /* GPIO_PA02 / Esc: Short=Sleep/Wake, Long=Power Sheet */
+    DIAL_KEY_PLAYPAUSE    = 2, /* GPIO_PA03 / Space: 1x=Play/Pause, 2x=Next, 3x=Prev */
+    DIAL_KEY_VOLUP        = 3, /* GPIO_PA04 / Up Arrow: +1 step */
+    DIAL_KEY_VOLDOWN      = 4, /* GPIO_PA05 / Down Arrow: -1 step */
+    DIAL_KEY_NEXT_SCREEN  = 5, /* Simulator Right Arrow / ']': Next screen */
+    DIAL_KEY_PREV_SCREEN  = 6, /* Simulator Left Arrow  / '[': Previous screen */
+    DIAL_KEY_TOGGLE_THEME = 7, /* Simulator 'D' key: Toggle Polar Night / Birch Day */
+    DIAL_KEY_SCREENSHOT   = 8  /* Simulator 'S' key: Save live PNG to /tmp/dialos_live.png */
 } dial_key_id_t;
 
 typedef struct {
@@ -53,7 +57,7 @@ void dial_hal_shutdown(void);
 /* Acquire singleton static 360x360 framebuffer (zero per-frame malloc) */
 dial_fb_t *dial_hal_get_framebuffer(void);
 
-/* Present framebuffer to SDL2 window or sync RGB565 buffer */
+/* Present framebuffer to native macOS Cocoa / SDL2 window and sync RGB565 buffer */
 void dial_hal_present(dial_fb_t *fb);
 
 /* Export 360x360 framebuffer to 32-bit RGBA PNG file */
@@ -75,6 +79,9 @@ bool dial_hal_poll_events(dial_touch_event_t *out_touch,
 
 /* Monotonic clock in milliseconds */
 uint32_t dial_hal_ticks_ms(void);
+
+/* Sleep for frame pacing in interactive mode */
+void dial_hal_delay_ms(uint32_t ms);
 
 /* Haptic LRA feedback (DRV2605L / simulator log) */
 void     dial_hal_haptic_tick(uint16_t duration_ms);

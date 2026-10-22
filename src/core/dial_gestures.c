@@ -247,7 +247,7 @@ dial_gesture_event_t dial_gesture_fsm_tick(dial_gesture_fsm_t *fsm,
 
             /* Standard 450ms & 600ms Holds (CC-01 submenus, FIL-02 sheet, FIL-03 delete, CC-02 unlock) */
             if (!fsm->is_now_playing_screen) {
-                if (!fsm->hold_450_fired && held_ms >= DIAL_CC_HOLD_MENU_MS) {
+                if (!fsm->hold_450_fired && held_ms >= DIAL_CC_HOLD_MENU_MS && held_ms < DIAL_HOLD_CONFIRM_MS) {
                     fsm->hold_450_fired = true;
                     fsm->state          = DIAL_GESTURE_HOLD_LOCKED;
                     ev.type             = DIAL_EVENT_HOLD_450MS;
@@ -259,6 +259,7 @@ dial_gesture_event_t dial_gesture_fsm_tick(dial_gesture_fsm_t *fsm,
                     return ev;
                 }
                 if (!fsm->hold_600_fired && held_ms >= DIAL_HOLD_CONFIRM_MS) {
+                    fsm->hold_450_fired = true;
                     fsm->hold_600_fired = true;
                     fsm->state          = DIAL_GESTURE_HOLD_LOCKED;
                     ev.type             = DIAL_EVENT_HOLD_600MS;

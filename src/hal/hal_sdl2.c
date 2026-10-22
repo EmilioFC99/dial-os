@@ -5,8 +5,12 @@
 #include <time.h>
 #include <zlib.h>
 
-#ifdef DIAL_HAS_SDL2
+#if defined(DIAL_HAS_SDL2)
 #include <SDL2/SDL.h>
+#elif defined(__APPLE__)
+#include <objc/runtime.h>
+#include <objc/message.h>
+#include <CoreGraphics/CoreGraphics.h>
 #endif
 
 /* Static arena-allocated framebuffer & IPC ring buffer (zero dynamic heap in render loop) */
@@ -23,10 +27,39 @@ static size_t         g_ipc_count = 0;
 static uint32_t g_haptic_count   = 0;
 static uint16_t g_last_haptic_ms = 0;
 
-#ifdef DIAL_HAS_SDL2
+#if defined(DIAL_HAS_SDL2)
 static SDL_Window   *g_window   = NULL;
 static SDL_Renderer *g_renderer = NULL;
 static SDL_Texture  *g_texture  = NULL;
+#elif defined(__APPLE__)
+static id            g_ns_app   = NULL;
+static id            g_ns_win   = NULL;
+static id            g_ns_layer = NULL;
+static CGColorSpaceRef g_cs     = NULL;
+static bool          g_mouse_down = false;
+
+typedef struct CGPoint ns_point_t;
+typedef struct CGRect  ns_rect_t;
+
+/* Typed objc_msgSend wrappers for strict C11 / arm64 ABI compliance */
+#define MSG_ID_0(rec, sel) \
+    ((id (*)(id, SEL))objc_msgSend)((id)(rec), sel_registerName(sel))
+#define MSG_ID_1(rec, sel, t1, a1) \
+    ((id (*)(id, SEL, t1))objc_msgSend)((id)(rec), sel_registerName(sel), (a1))
+#define MSG_VOID_0(rec, sel) \
+    ((void (*)(id, SEL))objc_msgSend)((id)(rec), sel_registerName(sel))
+#define MSG_VOID_1(rec, sel, t1, a1) \
+    ((void (*)(id, SEL, t1))objc_msgSend)((id)(rec), sel_registerName(sel), (a1))
+#define MSG_BOOL_0(rec, sel) \
+    ((signed char (*)(id, SEL))objc_msgSend)((id)(rec), sel_registerName(sel))
+#define MSG_BOOL_1(rec, sel, t1, a1) \
+    ((signed char (*)(id, SEL, t1))objc_msgSend)((id)(rec), sel_registerName(sel), (a1))
+#define MSG_ULONG_0(rec, sel) \
+    ((unsigned long (*)(id, SEL))objc_msgSend)((id)(rec), sel_registerName(sel))
+#define MSG_USHORT_0(rec, sel) \
+    ((unsigned short (*)(id, SEL))objc_msgSend)((id)(rec), sel_registerName(sel))
+#define MSG_POINT_0(rec, sel) \
+    ((ns_point_t (*)(id, SEL))objc_msgSend)((id)(rec), sel_registerName(sel))
 #endif
 
 bool dial_hal_init(bool headless) {
@@ -36,7 +69,7 @@ bool dial_hal_init(bool headless) {
     g_headless  = headless;
     dial_hal_reset_stats();
 
-#ifdef DIAL_HAS_SDL2
+#if defined(DIAL_HAS_SDL2)
     if (!headless) {
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
             fprintf(stderr, "[HAL] SDL_Init failed: %s\n", SDL_GetError());
@@ -50,10 +83,7 @@ bool dial_hal_init(bool headless) {
             DIAL_SCREEN_HEIGHT,
             SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI
         );
-        if (!g_window) {
-            fprintf(stderr, "[HAL] SDL_CreateWindow failed: %s\n", SDL_GetError());
-            return false;
-        }
+        if (!g_window) return false;
         g_renderer = SDL_CreateRenderer(
             g_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
         );
@@ -68,6 +98,37 @@ bool dial_hal_init(bool headless) {
             DIAL_SCREEN_HEIGHT
         );
     }
+#elif defined(__APPLE__)
+    if (!headless) {
+        g_ns_app = MSG_ID_0(objc_getClass("NSApplication"), "sharedApplication");
+        /* NSApplicationActivationPolicyRegular = 0 */
+        MSG_BOOL_1(g_ns_app, "setActivationPolicy:", long, 0L);
+
+        ns_rect_t rect = CGRectMake(240.0, 240.0, (double)DIAL_SCREEN_WIDTH, (double)DIAL_SCREEN_HEIGHT);
+        /* NSWindowStyleMaskTitled (1) | NSWindowStyleMaskClosable (2) | NSWindowStyleMaskMiniaturizable (4) = 7 */
+        id win_alloc = MSG_ID_0(objc_getClass("NSWindow"), "alloc");
+        g_ns_win = ((id (*)(id, SEL, ns_rect_t, unsigned long, unsigned long, signed char))objc_msgSend)(
+            win_alloc,
+            sel_registerName("initWithContentRect:styleMask:backing:defer:"),
+            rect, 7UL, 2UL, (signed char)0
+        );
+
+        id title = MSG_ID_1(objc_getClass("NSString"), "stringWithUTF8String:", const char *,
+                            "DialOS Live Simulator — Fjäll (360x360)");
+        MSG_VOID_1(g_ns_win, "setTitle:", id, title);
+        MSG_VOID_0(g_ns_win, "center");
+
+        id content_view = MSG_ID_0(g_ns_win, "contentView");
+        MSG_VOID_1(content_view, "setWantsLayer:", signed char, (signed char)1);
+        g_ns_layer = MSG_ID_0(content_view, "layer");
+
+        MSG_VOID_1(g_ns_win, "makeKeyAndOrderFront:", id, NULL);
+        MSG_VOID_1(g_ns_app, "activateIgnoringOtherApps:", signed char, (signed char)1);
+        MSG_VOID_0(g_ns_app, "finishLaunching");
+
+        g_cs = CGColorSpaceCreateDeviceRGB();
+        g_mouse_down = false;
+    }
 #endif
 
     g_initialized = true;
@@ -75,12 +136,22 @@ bool dial_hal_init(bool headless) {
 }
 
 void dial_hal_shutdown(void) {
-#ifdef DIAL_HAS_SDL2
+#if defined(DIAL_HAS_SDL2)
     if (g_texture)  { SDL_DestroyTexture(g_texture);   g_texture  = NULL; }
     if (g_renderer) { SDL_DestroyRenderer(g_renderer); g_renderer = NULL; }
     if (g_window)   { SDL_DestroyWindow(g_window);     g_window   = NULL; }
     if (!g_headless) {
         SDL_Quit();
+    }
+#elif defined(__APPLE__)
+    if (g_cs) {
+        CGColorSpaceRelease(g_cs);
+        g_cs = NULL;
+    }
+    if (g_ns_win && !g_headless) {
+        MSG_VOID_0(g_ns_win, "close");
+        g_ns_win = NULL;
+        g_ns_layer = NULL;
     }
 #endif
     g_initialized = false;
@@ -102,12 +173,32 @@ void dial_hal_present(dial_fb_t *fb) {
         fb->rgb565[i] = dial_rgb888_to_rgb565(fb->pixels[i] & 0xFFFFFFu);
     }
 
-#ifdef DIAL_HAS_SDL2
+#if defined(DIAL_HAS_SDL2)
     if (!g_headless && g_renderer && g_texture) {
         SDL_UpdateTexture(g_texture, NULL, fb->pixels, (int)(fb->width * sizeof(uint32_t)));
         SDL_RenderClear(g_renderer);
         SDL_RenderCopy(g_renderer, g_texture, NULL, NULL);
         SDL_RenderPresent(g_renderer);
+    }
+#elif defined(__APPLE__)
+    if (!g_headless && g_ns_layer && g_cs) {
+        CGContextRef ctx = CGBitmapContextCreate(
+            fb->pixels,
+            fb->width,
+            fb->height,
+            8,
+            fb->width * sizeof(uint32_t),
+            g_cs,
+            (uint32_t)kCGBitmapByteOrder32Little | (uint32_t)kCGImageAlphaPremultipliedFirst
+        );
+        if (ctx) {
+            CGImageRef img = CGBitmapContextCreateImage(ctx);
+            if (img) {
+                MSG_VOID_1(g_ns_layer, "setContents:", id, (id)img);
+                CGImageRelease(img);
+            }
+            CGContextRelease(ctx);
+        }
     }
 #endif
 }
@@ -196,6 +287,13 @@ uint32_t dial_hal_ticks_ms(void) {
     return (uint32_t)((uint64_t)ts.tv_sec * 1000ULL + (uint64_t)ts.tv_nsec / 1000000ULL);
 }
 
+void dial_hal_delay_ms(uint32_t ms) {
+    struct timespec req;
+    req.tv_sec  = (time_t)(ms / 1000u);
+    req.tv_nsec = (long)((ms % 1000u) * 1000000UL);
+    nanosleep(&req, NULL);
+}
+
 bool dial_hal_poll_events(dial_touch_event_t *out_touch,
                           bool *has_touch,
                           dial_key_event_t *out_key,
@@ -203,7 +301,7 @@ bool dial_hal_poll_events(dial_touch_event_t *out_touch,
     if (has_touch) *has_touch = false;
     if (has_key)   *has_key   = false;
 
-#ifdef DIAL_HAS_SDL2
+#if defined(DIAL_HAS_SDL2)
     if (!g_headless) {
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
@@ -234,10 +332,14 @@ bool dial_hal_poll_events(dial_touch_event_t *out_touch,
             if (ev.type == SDL_KEYDOWN || ev.type == SDL_KEYUP) {
                 if (out_key && has_key) {
                     dial_key_id_t mapped = DIAL_KEY_NONE;
-                    if (ev.key.keysym.sym == SDLK_SPACE)  mapped = DIAL_KEY_PLAYPAUSE;
-                    if (ev.key.keysym.sym == SDLK_UP)     mapped = DIAL_KEY_VOLUP;
-                    if (ev.key.keysym.sym == SDLK_DOWN)   mapped = DIAL_KEY_VOLDOWN;
-                    if (ev.key.keysym.sym == SDLK_ESCAPE) mapped = DIAL_KEY_POWER;
+                    if (ev.key.keysym.sym == SDLK_SPACE)        mapped = DIAL_KEY_PLAYPAUSE;
+                    if (ev.key.keysym.sym == SDLK_UP)           mapped = DIAL_KEY_VOLUP;
+                    if (ev.key.keysym.sym == SDLK_DOWN)         mapped = DIAL_KEY_VOLDOWN;
+                    if (ev.key.keysym.sym == SDLK_ESCAPE)       mapped = DIAL_KEY_POWER;
+                    if (ev.key.keysym.sym == SDLK_RIGHT || ev.key.keysym.sym == SDLK_RIGHTBRACKET) mapped = DIAL_KEY_NEXT_SCREEN;
+                    if (ev.key.keysym.sym == SDLK_LEFT  || ev.key.keysym.sym == SDLK_LEFTBRACKET)  mapped = DIAL_KEY_PREV_SCREEN;
+                    if (ev.key.keysym.sym == SDLK_d)            mapped = DIAL_KEY_TOGGLE_THEME;
+                    if (ev.key.keysym.sym == SDLK_s)            mapped = DIAL_KEY_SCREENSHOT;
                     if (mapped != DIAL_KEY_NONE) {
                         out_key->key          = mapped;
                         out_key->pressed      = (ev.type == SDL_KEYDOWN);
@@ -247,6 +349,74 @@ bool dial_hal_poll_events(dial_touch_event_t *out_touch,
                     }
                 }
             }
+        }
+        return true;
+    }
+#elif defined(__APPLE__)
+    if (!g_headless && g_ns_app && g_ns_win) {
+        if (!MSG_BOOL_0(g_ns_win, "isVisible")) {
+            return false;
+        }
+        id distant_past = MSG_ID_0(objc_getClass("NSDate"), "distantPast");
+        id run_mode     = MSG_ID_1(objc_getClass("NSString"), "stringWithUTF8String:",
+                                   const char *, "kCFRunLoopDefaultMode");
+
+        id ev = ((id (*)(id, SEL, unsigned long, id, id, signed char))objc_msgSend)(
+            g_ns_app,
+            sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:"),
+            ~0UL, distant_past, run_mode, (signed char)1
+        );
+
+        if (ev) {
+            unsigned long ev_type = MSG_ULONG_0(ev, "type");
+            uint32_t now_ms = dial_hal_ticks_ms();
+
+            /* NSEventTypeLeftMouseDown = 1, LeftMouseUp = 2, LeftMouseDragged = 6 */
+            if (ev_type == 1UL || ev_type == 2UL || ev_type == 6UL) {
+                ns_point_t pt = MSG_POINT_0(ev, "locationInWindow");
+                float mx = (float)pt.x;
+                float my = (float)DIAL_SCREEN_HEIGHT - (float)pt.y;
+                if (mx >= 0.0f && mx <= (float)DIAL_SCREEN_WIDTH &&
+                    my >= 0.0f && my <= (float)DIAL_SCREEN_HEIGHT) {
+                    g_mouse_down = (ev_type != 2UL);
+                    if (out_touch && has_touch) {
+                        out_touch->x            = mx;
+                        out_touch->y            = my;
+                        out_touch->pressed      = g_mouse_down;
+                        out_touch->timestamp_ms = now_ms;
+                        *has_touch              = true;
+                    }
+                }
+            }
+            /* NSEventTypeKeyDown = 10, KeyUp = 11 */
+            else if (ev_type == 10UL || ev_type == 11UL) {
+                unsigned short keycode = MSG_USHORT_0(ev, "keyCode");
+                dial_key_id_t mapped = DIAL_KEY_NONE;
+                switch (keycode) {
+                    case 49:  mapped = DIAL_KEY_PLAYPAUSE;    break; /* Space */
+                    case 53:  mapped = DIAL_KEY_POWER;        break; /* Escape */
+                    case 126: mapped = DIAL_KEY_VOLUP;        break; /* Up Arrow */
+                    case 125: mapped = DIAL_KEY_VOLDOWN;      break; /* Down Arrow */
+                    case 124:
+                    case 30:  mapped = DIAL_KEY_NEXT_SCREEN;  break; /* Right Arrow / ']' */
+                    case 123:
+                    case 33:  mapped = DIAL_KEY_PREV_SCREEN;  break; /* Left Arrow / '[' */
+                    case 2:   mapped = DIAL_KEY_TOGGLE_THEME; break; /* 'D' key */
+                    case 1:   mapped = DIAL_KEY_SCREENSHOT;   break; /* 'S' key */
+                    case 12:  return false;                          /* 'Q' key quits */
+                    default:  break;
+                }
+                if (mapped != DIAL_KEY_NONE && out_key && has_key) {
+                    out_key->key          = mapped;
+                    out_key->pressed      = (ev_type == 10UL);
+                    out_key->timestamp_ms = now_ms;
+                    *has_key              = true;
+                    return true;
+                }
+            }
+
+            MSG_VOID_1(g_ns_app, "sendEvent:", id, ev);
+            MSG_VOID_0(g_ns_app, "updateWindows");
         }
         return true;
     }
@@ -281,7 +451,6 @@ void dial_hal_reset_stats(void) {
 bool dial_hal_send_ipc(const char *opcode, const char *payload) {
     if (!opcode) return false;
     if (g_ipc_count >= DIAL_IPC_RING_CAP) {
-        /* Drop oldest when ring is full */
         g_ipc_tail = (g_ipc_tail + 1) % DIAL_IPC_RING_CAP;
         g_ipc_count--;
     }
@@ -312,7 +481,6 @@ size_t dial_hal_get_ipc_count(void) {
 }
 
 size_t dial_hal_get_ram_usage_bytes(void) {
-    /* Static arena footprint: framebuffer + IPC ring + PNG scanline buffers */
     return sizeof(g_fb) + sizeof(g_ipc_ring) +
            (size_t)(DIAL_SCREEN_HEIGHT * (DIAL_SCREEN_WIDTH * 4 + 1)) * 2u;
 }

@@ -9,6 +9,7 @@
 #include "dial_draw.h"
 #include "dial_icons.h"
 #include "dial_screens.h"
+#include "dial_app.h"
 
 int main(int argc, char **argv) {
     bool headless = false;
@@ -36,8 +37,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    dial_app_t *app = dial_app_get_state();
+    dial_app_init(app, screen_id, mode);
+
     dial_fb_t *fb = dial_hal_get_framebuffer();
-    dial_screen_render_by_id(fb, screen_id, mode, 0);
+    dial_app_render(app, fb, 0);
     dial_hal_present(fb);
 
     if (headless) {
@@ -55,10 +59,12 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    /* Interactive desktop loop when SDL2 is enabled */
-    dial_gesture_fsm_t fsm;
-    dial_gesture_fsm_init(&fsm, strcmp(screen_id, "NP-01") == 0, 330000u);
+    printf("[DialOS] Live Interactive Simulator started on screen %s (%s mode)\n",
+           app->screen_id, (app->mode == DIAL_MODE_DAY) ? "Day" : "Night");
+    printf("  Mouse: Click/Drag r=38px vinyl ring, 1x tap Quick Actions, 2x tap Play/Pause, Rim scroll, Top pull-down CC-01\n");
+    printf("  Keys : [Left/Right] Cycle Screens | [D] Night/Day | [Space] Play/Pause | [Up/Down] Vol | [S] Screenshot | [Q] Quit\n");
 
+    /* Live 60 FPS interactive desktop loop (native macOS Cocoa or SDL2) */
     while (true) {
         dial_touch_event_t touch;
         dial_key_event_t   key;
@@ -67,11 +73,16 @@ int main(int argc, char **argv) {
             break;
         }
         if (has_touch) {
-            dial_gesture_fsm_step(&fsm, &touch);
+            dial_app_on_touch(app, &touch);
         }
-        dial_gesture_fsm_tick(&fsm, dial_hal_ticks_ms());
-        dial_screen_render_by_id(fb, screen_id, mode, dial_hal_ticks_ms());
+        if (has_key) {
+            dial_app_on_key(app, &key, fb);
+        }
+        uint32_t now_ms = dial_hal_ticks_ms();
+        dial_app_tick(app, now_ms);
+        dial_app_render(app, fb, now_ms);
         dial_hal_present(fb);
+        dial_hal_delay_ms(16);
     }
 
     dial_hal_shutdown();

@@ -1,14 +1,18 @@
-# DialOS Makefile — Dual-Target Build & ASan/UBSan Verification Harness
+# DialOS Makefile — Dual-Target Build, Native Live Simulator & ASan/UBSan Test Harness
 CC       ?= clang
 CFLAGS   := -std=c11 -Wall -Wextra -Werror -Iinclude
 LIBS     := -lm -lz
 
-# Auto-detect optional SDL2 for interactive desktop window
+# Auto-detect optional SDL2; on macOS default to native Cocoa + CoreGraphics window
 SDL2_CFLAGS := $(shell sdl2-config --cflags 2>/dev/null || pkg-config --cflags sdl2 2>/dev/null)
 SDL2_LIBS   := $(shell sdl2-config --libs 2>/dev/null || pkg-config --libs sdl2 2>/dev/null)
+UNAME_S     := $(shell uname -s)
+
 ifneq ($(strip $(SDL2_LIBS)),)
     CFLAGS += -DDIAL_HAS_SDL2 $(SDL2_CFLAGS)
     LIBS   += $(SDL2_LIBS)
+else ifeq ($(UNAME_S),Darwin)
+    LIBS   += -framework Cocoa -framework CoreGraphics
 endif
 
 SAN_FLAGS := -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
@@ -18,6 +22,7 @@ BUILD_DIR := build
 CORE_SRCS := src/hal/hal_sdl2.c \
              src/core/dial_polar.c \
              src/core/dial_gestures.c \
+             src/core/dial_app.c \
              src/ui/dial_draw.c \
              src/ui/dial_icons.c \
              src/screens/dial_screens_core_np.c
@@ -26,6 +31,7 @@ SIM_BIN   := $(BUILD_DIR)/dialos-sim
 TEST_POL  := $(BUILD_DIR)/test_polar_gestures
 TEST_DRW  := $(BUILD_DIR)/test_draw_primitives
 TEST_V030 := $(BUILD_DIR)/test_screens_v030
+TEST_UI   := $(BUILD_DIR)/test_ui_interaction
 
 .PHONY: all sim test clean
 
@@ -48,10 +54,14 @@ $(TEST_DRW): $(CORE_SRCS) tests/test_draw_primitives.c | $(BUILD_DIR)
 $(TEST_V030): $(CORE_SRCS) tests/test_screens_v030.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_screens_v030.c -o $(TEST_V030) $(LIBS)
 
-test: $(TEST_POL) $(TEST_DRW) $(TEST_V030) $(SIM_BIN)
+$(TEST_UI): $(CORE_SRCS) tests/test_ui_interaction.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_ui_interaction.c -o $(TEST_UI) $(LIBS)
+
+test: $(TEST_POL) $(TEST_DRW) $(TEST_V030) $(TEST_UI) $(SIM_BIN)
 	./$(TEST_POL)
 	./$(TEST_DRW)
 	./$(TEST_V030)
+	./$(TEST_UI)
 	./$(SIM_BIN) --headless --screen SYS-00 --mode night --out /tmp/dialos_v030_sys00.png
 	./$(SIM_BIN) --headless --screen LCK-01 --mode night --out /tmp/dialos_v030_lck01.png
 	./$(SIM_BIN) --headless --screen LCK-02 --mode night --out /tmp/dialos_v030_lck02.png
