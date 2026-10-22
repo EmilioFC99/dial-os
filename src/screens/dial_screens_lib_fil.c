@@ -1,5 +1,6 @@
 #include "dial_screens.h"
 #include "dial_app.h"
+#include "dial_media.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,12 +30,17 @@ void dial_render_lib_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
     dial_draw_clear(fb, pal->bg);
     dial_draw_header(fb, pal, "Library", "", 42);
 
+    char alb_val[16] = "214";
+    if (dial_media_is_loaded()) {
+        snprintf(alb_val, sizeof(alb_val), "%zu", dial_media_get_album_count());
+    }
+
     /* Locked Rule #6: Row order is strictly Favorites, Playlists, Artists, Albums, Genres */
     const dial_rim_row_t rows[5] = {
         { .icon_name = "heart",    .title = "Favorites", .value_text = "64" },
         { .icon_name = "playlist", .title = "Playlists", .value_text = "12" },
-        { .icon_name = "artist",   .title = "Artists",   .sub = "118 artists · A–Z", .has_chev = true },
-        { .icon_name = "album",    .title = "Albums",    .value_text = "214" },
+        { .icon_name = "artist",   .title = "Artists",   .sub = dial_media_is_loaded() ? "Au5 · Discography" : "118 artists · A–Z", .has_chev = true },
+        { .icon_name = "album",    .title = "Albums",    .value_text = alb_val },
         { .icon_name = "genre",    .title = "Genres",    .value_text = "24" }
     };
 
@@ -46,12 +52,13 @@ void dial_render_lib_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
 /* ── 2. LIB-02: Albums · Cover Arc (132 / 84 / 56 px, Swipe + Rim Scroll) ── */
 static void draw_cover_with_opacity(dial_fb_t *fb,
                                     const dial_palette_t *pal,
+                                    const uint16_t *custom_tex,
                                     dial_art_kind_t art,
                                     int cx,
                                     int cy,
                                     int diameter,
                                     uint8_t opacity) {
-    dial_draw_art(fb, pal, art, cx, cy, diameter, false, 0.0f);
+    dial_draw_art_tex(fb, pal, custom_tex, art, cx, cy, diameter, false, 0.0f);
     if (opacity < 255) {
         dial_draw_circle_fill(fb, (float)cx, (float)cy, (float)diameter * 0.5f + 0.5f,
                               pal->bg, (uint8_t)(255 - opacity));
@@ -61,6 +68,45 @@ static void draw_cover_with_opacity(dial_fb_t *fb,
 void dial_render_lib_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     (void)tick_ms;
     const dial_app_t *app = dial_app_get_state();
+
+    dial_draw_clear(fb, pal->bg);
+
+    if (dial_media_is_loaded() && dial_media_get_album_count() > 0) {
+        size_t n = dial_media_get_album_count();
+        size_t focus = (size_t)((app->album_focus_idx >= 0) ? app->album_focus_idx : 0) % n;
+        size_t p1 = (focus + n - 1) % n;
+        size_t n1 = (focus + 1) % n;
+        size_t p2 = (focus + n - 2) % n;
+        size_t n2 = (focus + 2) % n;
+
+        char hdr[48];
+        snprintf(hdr, sizeof(hdr), "Albums · %zu", n);
+        dial_draw_header(fb, pal, hdr, "", 46);
+
+        draw_cover_with_opacity(fb, pal, dial_media_get_album_cover_rgb565(p2), (dial_art_kind_t)(p2 % 6), 22,  144, 56, 90);
+        draw_cover_with_opacity(fb, pal, dial_media_get_album_cover_rgb565(n2), (dial_art_kind_t)(n2 % 6), 338, 144, 56, 90);
+        draw_cover_with_opacity(fb, pal, dial_media_get_album_cover_rgb565(p1), (dial_art_kind_t)(p1 % 6), 70,  138, 84, 191);
+        draw_cover_with_opacity(fb, pal, dial_media_get_album_cover_rgb565(n1), (dial_art_kind_t)(n1 % 6), 290, 138, 84, 191);
+
+        dial_draw_circle_fill(fb, 180.0f, 138.0f, 70.0f, pal->bg, 255);
+        dial_draw_circle_stroke(fb, 180.0f, 138.0f, 71.0f, 1.5f, pal->moss, 255);
+        dial_draw_art_tex(fb, pal, dial_media_get_album_cover_rgb565(focus), (dial_art_kind_t)(focus % 6), 180, 138, 132, false, 0.0f);
+
+        const dial_album_info_t *alb = dial_media_get_album(focus);
+        dial_draw_text(fb, alb->name,   DIAL_CENTER_X, 220, 20, pal->text_1, 255, true);
+        dial_draw_text(fb, alb->artist, DIAL_CENTER_X, 245, 13, pal->text_2, 255, true);
+
+        char tchip[32];
+        snprintf(tchip, sizeof(tchip), "%zu track%s", alb->track_count, alb->track_count == 1 ? "" : "s");
+        int chip_w = dial_measure_text(tchip, 10, 0) + 14;
+        dial_draw_chip(fb, pal, DIAL_CENTER_X - chip_w / 2, 272, tchip, 0, NULL);
+
+        dial_draw_scroll_rim(fb, pal, (float)focus / (float)n, 0.16f);
+        dial_draw_hint(fb, pal, NULL, "Swipe or trace rim · tap to open", 0);
+        dial_draw_circle_mask(fb);
+        return;
+    }
+
     int focus = (app->album_focus_idx >= 0) ? (app->album_focus_idx % 6) : 0;
 
     const album_spec_t *cur  = &G_ALBUMS[focus];
@@ -69,16 +115,15 @@ void dial_render_lib_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
     const album_spec_t *prv2 = &G_ALBUMS[(focus + 4) % 6];
     const album_spec_t *nxt2 = &G_ALBUMS[(focus + 2) % 6];
 
-    dial_draw_clear(fb, pal->bg);
     dial_draw_header(fb, pal, "Albums · 214", "", 46);
 
     /* Outer 56px neighbours at 35% opacity (left=-6+28=22, right=310+28=338, cy=144) */
-    draw_cover_with_opacity(fb, pal, prv2->art, 22,  144, 56, 90);
-    draw_cover_with_opacity(fb, pal, nxt2->art, 338, 144, 56, 90);
+    draw_cover_with_opacity(fb, pal, NULL, prv2->art, 22,  144, 56, 90);
+    draw_cover_with_opacity(fb, pal, NULL, nxt2->art, 338, 144, 56, 90);
 
     /* Inner 84px neighbours at 75% opacity (left=28+42=70, right=248+42=290, cy=138) */
-    draw_cover_with_opacity(fb, pal, prv1->art, 70,  138, 84, 191);
-    draw_cover_with_opacity(fb, pal, nxt1->art, 290, 138, 84, 191);
+    draw_cover_with_opacity(fb, pal, NULL, prv1->art, 70,  138, 84, 191);
+    draw_cover_with_opacity(fb, pal, NULL, nxt1->art, 290, 138, 84, 191);
 
     /* Center focused 132px cover at (180, 138) with 4px bg gap + 1.5px moss ring */
     dial_draw_circle_fill(fb, 180.0f, 138.0f, 70.0f, pal->bg, 255);
@@ -100,14 +145,56 @@ void dial_render_lib_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
 /* ── 3. LIB-03: Track List (Locked Rule #6: Animated Moss EQ + Playing, No Codec Clutter) ── */
 void dial_render_lib_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     const dial_app_t *app = dial_app_get_state();
-    size_t focus   = (size_t)(app->track_focus_idx >= 0 && app->track_focus_idx < 5 ? app->track_focus_idx : 2);
-    size_t playing = (size_t)(app->playing_track_idx >= 0 && app->playing_track_idx < 5 ? app->playing_track_idx : 2);
 
     dial_draw_clear(fb, pal->bg);
-    dial_draw_header(fb, pal, "Mezzanine", "", 42);
 
     /* 9 o'clock back chevron button */
     dial_draw_icon(fb, DIAL_ICON_BACK, 12.0f, 170.0f, 20.0f, 1.75f, pal->text_3, 255);
+
+    if (dial_media_is_loaded() && dial_media_get_album_count() > 0) {
+        size_t alb_idx = (size_t)((app->album_focus_idx >= 0) ? app->album_focus_idx : 0) % dial_media_get_album_count();
+        const dial_album_info_t *alb = dial_media_get_album(alb_idx);
+        dial_draw_header(fb, pal, alb->name, "", 42);
+
+        size_t total = alb->track_count;
+        size_t vis   = (total < 5) ? total : 5;
+        size_t focus_abs = (size_t)((app->track_focus_idx >= 0) ? app->track_focus_idx : 0);
+        if (focus_abs >= total && total > 0) focus_abs = total - 1;
+
+        size_t win_start = 0;
+        if (total > 5 && focus_abs > 2) {
+            win_start = focus_abs - 2;
+            if (win_start + 5 > total) win_start = total - 5;
+        }
+
+        dial_rim_row_t rows[5];
+        char leads[5][8];
+        char durs[5][16];
+        memset(rows, 0, sizeof(rows));
+
+        for (size_t i = 0; i < vis; ++i) {
+            size_t tidx = win_start + i;
+            const dial_track_info_t *tr = &alb->tracks[tidx];
+            snprintf(leads[i], sizeof(leads[i]), "%02u", (unsigned)(tidx + 1));
+            snprintf(durs[i], sizeof(durs[i]), "%u:%02u", tr->duration_sec / 60u, tr->duration_sec % 60u);
+            rows[i].lead_text  = leads[i];
+            rows[i].title      = tr->title;
+            rows[i].value_text = durs[i];
+            if (strcmp(tr->filepath, dial_media_get_now_filepath()) == 0) {
+                rows[i].lead_color = pal->moss;
+                rows[i].playing_eq = true;
+            }
+        }
+        dial_draw_rim_list(fb, pal, rows, vis, focus_abs - win_start, 64, tick_ms);
+        dial_draw_scroll_rim(fb, pal, total > 1 ? (float)focus_abs / (float)total : 0.1f, 0.25f);
+        dial_draw_circle_mask(fb);
+        return;
+    }
+
+    size_t focus   = (size_t)(app->track_focus_idx >= 0 && app->track_focus_idx < 5 ? app->track_focus_idx : 2);
+    size_t playing = (size_t)(app->playing_track_idx >= 0 && app->playing_track_idx < 5 ? app->playing_track_idx : 2);
+
+    dial_draw_header(fb, pal, "Mezzanine", "", 42);
 
     dial_rim_row_t rows[5] = {
         { .lead_text = "01", .title = "Angel",          .value_text = "6:18" },
@@ -158,9 +245,50 @@ void dial_render_lib_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
 /* ── Shared Base Renderer for FIL-01..FIL-03 (/mnt/sdcard/Music/Trip-hop) ── */
 static void draw_files_base(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     const dial_app_t *app = dial_app_get_state();
-    size_t focus = (size_t)(app->file_focus_idx >= 0 && app->file_focus_idx < 5 ? app->file_focus_idx : 2);
 
     dial_draw_clear(fb, pal->bg);
+
+    if (dial_media_is_loaded() && dial_media_get_fs_entry_count() > 0) {
+        dial_draw_header(fb, pal, dial_media_get_current_dir_label(), "", 42);
+        size_t total = dial_media_get_fs_entry_count();
+        size_t vis   = (total < 5) ? total : 5;
+        size_t focus_abs = (size_t)((app->file_focus_idx >= 0) ? app->file_focus_idx : 0);
+        if (focus_abs >= total && total > 0) focus_abs = total - 1;
+
+        size_t win_start = 0;
+        if (total > 5 && focus_abs > 2) {
+            win_start = focus_abs - 2;
+            if (win_start + 5 > total) win_start = total - 5;
+        }
+
+        dial_rim_row_t rows[5];
+        char subs[5][48];
+        memset(rows, 0, sizeof(rows));
+
+        for (size_t i = 0; i < vis; ++i) {
+            const dial_fs_entry_t *ent = dial_media_get_fs_entry(win_start + i);
+            if (!ent) continue;
+            if (strcmp(ent->name, "..") == 0) {
+                rows[i].icon_name = "back";
+                rows[i].title     = "..";
+                rows[i].sub       = "Parent folder";
+            } else if (ent->is_dir) {
+                rows[i].icon_name = "folder";
+                rows[i].title     = ent->name;
+                rows[i].sub       = "Album folder";
+                rows[i].has_chev  = true;
+            } else {
+                rows[i].icon_name = "fileaudio";
+                rows[i].title     = ent->name;
+                snprintf(subs[i], sizeof(subs[i]), "%.1f MB · FLAC", (double)ent->size_bytes / (1024.0 * 1024.0));
+                rows[i].sub       = subs[i];
+            }
+        }
+        dial_draw_rim_list(fb, pal, rows, vis, focus_abs - win_start, 64, tick_ms);
+        return;
+    }
+
+    size_t focus = (size_t)(app->file_focus_idx >= 0 && app->file_focus_idx < 5 ? app->file_focus_idx : 2);
     dial_draw_header(fb, pal, "sdcard / Music / Trip-hop", "", 42);
 
     const dial_rim_row_t rows[5] = {

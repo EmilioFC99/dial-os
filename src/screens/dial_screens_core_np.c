@@ -1,5 +1,6 @@
 #include "dial_screens.h"
 #include "dial_app.h"
+#include "dial_media.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -76,7 +77,8 @@ static void draw_np_base(dial_fb_t *fb,
                          uint32_t tick_ms) {
     const dial_app_t *app = dial_app_get_state();
     float spin_deg = (!dim && app->is_playing) ? (float)(tick_ms % 1800) * 0.2f : 0.0f;
-    dial_draw_art(fb, pal, DIAL_ART_FJORD, DIAL_CENTER_X, DIAL_CENTER_Y, 360, true, spin_deg);
+    dial_draw_art_tex(fb, pal, dial_media_get_now_cover_rgb565(),
+                      DIAL_ART_FJORD, DIAL_CENTER_X, DIAL_CENTER_Y, 360, true, spin_deg);
 
     if (!dim) {
         /* Locked Rule #2: Inner vinyl circle progress & seek ring (r = 38px, 0°=0% -> 359°=99%) */
@@ -135,7 +137,8 @@ static void render_lck_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tic
     float spin_deg = app->is_playing ? (float)(tick_ms % 1800) * 0.2f : 0.0f;
 
     dial_draw_clear(fb, pal->bg);
-    dial_draw_art(fb, pal, DIAL_ART_FJORD, DIAL_CENTER_X, DIAL_CENTER_Y, 360, true, spin_deg);
+    dial_draw_art_tex(fb, pal, dial_media_get_now_cover_rgb565(),
+                      DIAL_ART_FJORD, DIAL_CENTER_X, DIAL_CENTER_Y, 360, true, spin_deg);
 
     for (int y = 180; y < DIAL_SCREEN_HEIGHT; ++y) {
         uint8_t a = (uint8_t)(((y - 180) * 210) / 180);
@@ -147,8 +150,8 @@ static void render_lck_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tic
     dial_draw_rim_arc(fb, pal, -140.0f, 140.0f, app->seek_progress, pal->moss, 168.0f, 3.5f, true, false, true);
     dial_draw_status_bar(fb, pal, "21:45", 82, 0xECEEE8u);
 
-    dial_draw_text(fb, "Teardrop", DIAL_CENTER_X, 212, 17, 0xECEEE8u, 255, true);
-    dial_draw_text(fb, "Massive Attack", DIAL_CENTER_X, 234, 13, 0xECEEE8u, 200, true);
+    dial_draw_text(fb, dial_media_get_now_title(),  DIAL_CENTER_X, 212, 17, 0xECEEE8u, 255, true);
+    dial_draw_text(fb, dial_media_get_now_artist(), DIAL_CENTER_X, 234, 13, 0xECEEE8u, 200, true);
 
     dial_draw_icon(fb, DIAL_ICON_PREV, 112.0f, 275.0f, 22.0f, 1.75f, 0xECEEE8u, 220);
     dial_draw_circle_fill(fb, 180.0f, 286.0f, 24.0f, pal->moss, 255);
@@ -336,9 +339,9 @@ static void render_np_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
 
     dial_draw_header(fb, pal, "Quick actions", "", 46);
 
-    dial_draw_text(fb, "Teardrop",         DIAL_CENTER_X, 108, 22, pal->text_1, 255, true);
-    dial_draw_text(fb, "Massive Attack",   DIAL_CENTER_X, 138, 13, pal->moss,   255, true);
-    dial_draw_text(fb, "Mezzanine · 1998", DIAL_CENTER_X, 158, 12, pal->text_2, 255, true);
+    dial_draw_text(fb, dial_media_get_now_title(),  DIAL_CENTER_X, 108, 22, pal->text_1, 255, true);
+    dial_draw_text(fb, dial_media_get_now_artist(), DIAL_CENTER_X, 138, 13, pal->moss,   255, true);
+    dial_draw_text(fb, dial_media_get_now_album(),  DIAL_CENTER_X, 158, 12, pal->text_2, 255, true);
 
     const struct {
         float       deg;
@@ -410,23 +413,29 @@ static void render_np_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
     dial_draw_round_rect(fb, 166.0f, 68.0f, 28.0f, 4.0f, 2.0f,
                          pal->surface_3, 255, 0.0f, 0, 0);
 
-    dial_draw_text(fb, "TRACK DETAILS",                  DIAL_CENTER_X, 84,  11, pal->text_3, 255, true);
-    dial_draw_text(fb, "Teardrop",                       DIAL_CENTER_X, 102, 20, pal->text_1, 255, true);
-    dial_draw_text(fb, "Massive Attack · Mezzanine",     DIAL_CENTER_X, 126, 12, pal->text_2, 255, true);
+    dial_draw_text(fb, "TRACK DETAILS",              DIAL_CENTER_X, 84,  11, pal->text_3, 255, true);
+    dial_draw_text(fb, dial_media_get_now_title(),   DIAL_CENTER_X, 102, 20, pal->text_1, 255, true);
+    char art_alb[128];
+    snprintf(art_alb, sizeof(art_alb), "%s · %s", dial_media_get_now_artist(), dial_media_get_now_album());
+    dial_draw_text(fb, art_alb,                      DIAL_CENTER_X, 126, 12, pal->text_2, 255, true);
 
-    int w1 = dial_measure_text("FLAC 24/96", 10, 0) + 14;
-    int w2 = dial_measure_text("2,842 kbps", 10, 0) + 14;
-    int w3 = dial_measure_text("DR 11",      10, 0) + 14;
+    char fmt_chip[32], br_chip[32];
+    snprintf(fmt_chip, sizeof(fmt_chip), "FLAC %u/%u", dial_media_get_now_bit_depth(), dial_media_get_now_sample_rate() / 1000u);
+    snprintf(br_chip, sizeof(br_chip), "%u kbps", dial_media_get_now_bitrate_kbps());
+
+    int w1 = dial_measure_text(fmt_chip, 10, 0) + 14;
+    int w2 = dial_measure_text(br_chip,  10, 0) + 14;
+    int w3 = dial_measure_text("DR 11",  10, 0) + 14;
     int cx_start = DIAL_CENTER_X - (w1 + w2 + w3 + 12) / 2;
-    dial_draw_chip(fb, pal, cx_start,               146, "FLAC 24/96", pal->moss, NULL);
-    dial_draw_chip(fb, pal, cx_start + w1 + 6,      146, "2,842 kbps", 0,         NULL);
-    dial_draw_chip(fb, pal, cx_start + w1 + w2 + 12,146, "DR 11",      0,         NULL);
+    dial_draw_chip(fb, pal, cx_start,               146, fmt_chip, pal->moss, NULL);
+    dial_draw_chip(fb, pal, cx_start + w1 + 6,      146, br_chip,  0,         NULL);
+    dial_draw_chip(fb, pal, cx_start + w1 + w2 + 12,146, "DR 11",  0,         NULL);
 
     static const char *kv[4][2] = {
-        { "Track",      "03 / 11" },
-        { "Genre",      "Trip-hop" },
+        { "Track",      "01 / 10" },
+        { "Genre",      "Electronic" },
         { "ReplayGain", "-6.4 dB" },
-        { "Size",       "78.4 MB" }
+        { "Size",       "48.2 MB" }
     };
     int ry = 178;
     for (int i = 0; i < 4; ++i) {
@@ -437,7 +446,7 @@ static void render_np_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
         ry += 24;
     }
 
-    dial_draw_text(fb, "/mnt/sdcard/Music/Mezzanine/03.flac", DIAL_CENTER_X, 278, 9, pal->text_3, 255, true);
+    dial_draw_text(fb, dial_media_get_now_filepath(), DIAL_CENTER_X, 278, 9, pal->text_3, 255, true);
     dial_draw_circle_mask(fb);
 }
 
@@ -481,31 +490,53 @@ static void render_test_icons(dial_fb_t *fb, const dial_palette_t *pal, uint32_t
     dial_draw_circle_mask(fb);
 }
 
-/* ── Master Screen Registry ── */
+/* ── Master Screen Registry (38 Fjäll Master Screens + 2 Test Screens) ── */
 static const dial_screen_desc_t G_SCREENS[] = {
-    { "SYS-00", "core",  "Boot",                             render_sys_00      },
-    { "LCK-01", "core",  "Lock · idle",                      render_lck_01      },
-    { "LCK-02", "core",  "Lock · playing (Full-Bleed)",      render_lck_02      },
-    { "HOM-01", "core",  "Home · carousel",                  render_hom_01      },
-    { "HOM-02", "core",  "Home · Library focused",           render_hom_02      },
-    { "HOM-03", "core",  "App wheel",                        render_hom_03      },
-    { "CC-01",  "core",  "Control Center · Icon Pucks",      render_cc_01       },
-    { "CC-02",  "core",  "Touch lock shield",                render_cc_02       },
-    { "NP-01",  "np",    "Now Playing · Pure Vinyl",         render_np_01       },
-    { "NP-02",  "np",    "Quick actions · Bottom Arc",       render_np_02       },
-    { "NP-03",  "np",    "Synced lyrics",                    render_np_03       },
-    { "NP-04",  "np",    "Track details sheet",              render_np_04       },
-    { "NP-05",  "np",    "Volume HUD",                       render_np_05       },
-    { "LIB-01", "lib",   "Library hub",                      dial_render_lib_01 },
-    { "LIB-02", "lib",   "Albums · cover arc",               dial_render_lib_02 },
-    { "LIB-03", "lib",   "Track list",                       dial_render_lib_03 },
-    { "LIB-04", "lib",   "Artists · letter jump",            dial_render_lib_04 },
-    { "FIL-01", "files", "Browser",                          dial_render_fil_01 },
-    { "FIL-02", "files", "Action sheet (File & Folder)",     dial_render_fil_02 },
-    { "FIL-03", "files", "Delete confirm (600ms Hold)",      dial_render_fil_03 },
-    { "FIL-04", "files", "Empty state",                      dial_render_fil_04 },
-    { "TEST-PRIMITIVES", "test", "Test Primitives",          dial_render_lib_01 },
-    { "TEST-ICONS",      "test", "Test 70 Icons",            render_test_icons  }
+    { "SYS-00", "core",     "Boot",                                   render_sys_00      },
+    { "LCK-01", "core",     "Lock · idle",                            render_lck_01      },
+    { "LCK-02", "core",     "Lock · playing (Full-Bleed)",            render_lck_02      },
+    { "HOM-01", "core",     "Home · carousel",                        render_hom_01      },
+    { "HOM-02", "core",     "Home · Library focused",                 render_hom_02      },
+    { "HOM-03", "core",     "App wheel",                              render_hom_03      },
+    { "CC-01",  "core",     "Control Center · Icon Pucks",            render_cc_01       },
+    { "CC-02",  "core",     "Touch lock shield",                      render_cc_02       },
+    { "NP-01",  "np",       "Now Playing · Pure Vinyl",               render_np_01       },
+    { "NP-02",  "np",       "Quick actions · Bottom Arc",             render_np_02       },
+    { "NP-03",  "np",       "Synced lyrics",                          render_np_03       },
+    { "NP-04",  "np",       "Track details sheet",                    render_np_04       },
+    { "NP-05",  "np",       "Volume HUD",                             render_np_05       },
+    { "LIB-01", "lib",      "Library hub",                            dial_render_lib_01 },
+    { "LIB-02", "lib",      "Albums · cover arc",                     dial_render_lib_02 },
+    { "LIB-03", "lib",      "Track list",                             dial_render_lib_03 },
+    { "LIB-04", "lib",      "Artists · letter jump",                  dial_render_lib_04 },
+    { "FIL-01", "files",    "Browser",                                dial_render_fil_01 },
+    { "FIL-02", "files",    "Action sheet (File & Folder)",           dial_render_fil_02 },
+    { "FIL-03", "files",    "Delete confirm (600ms Hold)",            dial_render_fil_03 },
+    { "FIL-04", "files",    "Empty state",                            dial_render_fil_04 },
+    { "MOD-00", "modes",    "Mode picker",                            dial_render_mod_00 },
+    { "MOD-01", "modes",    "Player",                                 dial_render_mod_01 },
+    { "MOD-02", "modes",    "USB DAC",                                dial_render_mod_02 },
+    { "MOD-03", "modes",    "USB Transport",                          dial_render_mod_03 },
+    { "MOD-04", "modes",    "BT Receiver",                            dial_render_mod_04 },
+    { "MOD-05", "modes",    "AirPlay",                                dial_render_mod_05 },
+    { "MOD-06", "modes",    "File Transfer",                          dial_render_mod_06 },
+    { "SET-01", "settings", "Settings",                               dial_render_set_01 },
+    { "SET-02", "settings", "Audio",                                  dial_render_set_02 },
+    { "SET-03", "settings", "DAC filter picker",                      dial_render_set_03 },
+    { "SET-04", "settings", "Parametric EQ",                          dial_render_set_04 },
+    { "SET-05", "settings", "Display",                                dial_render_set_05 },
+    { "SET-06", "settings", "Wi-Fi",                                  dial_render_set_06 },
+    { "SET-07", "settings", "Bluetooth · Fast-cache & Codec Ladder",  dial_render_set_07 },
+    { "GAM-01", "games",    "Arcade hub",                             dial_render_gam_01 },
+    { "GAM-02", "games",    "Dial Pong",                              dial_render_gam_02 },
+    { "GAM-03", "games",    "2048 Wheel",                             dial_render_gam_03 },
+    { "GAM-04", "games",    "Boomshine",                              dial_render_gam_04 },
+    { "OVL-01", "overlays", "Toast",                                  dial_render_ovl_01 },
+    { "OVL-02", "overlays", "Connection toast",                       dial_render_ovl_02 },
+    { "OVL-03", "overlays", "Low battery dialog",                     dial_render_ovl_03 },
+    { "OVL-04", "overlays", "Charging",                               dial_render_ovl_04 },
+    { "TEST-PRIMITIVES", "test", "Test Primitives",                   dial_render_lib_01 },
+    { "TEST-ICONS",      "test", "Test 70 Icons",                     render_test_icons  }
 };
 
 const dial_screen_desc_t *dial_screen_get_all(size_t *out_count) {

@@ -21,6 +21,8 @@
 #define DIAL_CMD_SET_EQ         "0689"  /* Apply EQ profile */
 #define DIAL_CMD_BT_CODEC       "06b3"  /* Set Bluetooth codec (priority ladder) */
 #define DIAL_CMD_BT_LDAC_QUAL   "06b4"  /* Set LDAC quality (990 / 660 / 330 kbps) */
+#define DIAL_CMD_GAIN_MODE      "06c1"  /* Toggle CS43131 analogue gain relay (low / high) */
+#define DIAL_CMD_DAC_FILTER     "06c2"  /* Set CS43131 reconstruction filter (0..4) */
 
 /* Bluetooth Codec Priority Ladder (Highest -> Lowest Fallback) */
 typedef enum {

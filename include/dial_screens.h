@@ -43,4 +43,31 @@ void dial_render_fil_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
 void dial_render_fil_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
 void dial_render_fil_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
 
+/* Milestone 4 (v0.5.0) Operating Modes, Settings, Arcade & Overlay Renderers */
+void dial_render_mod_00(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_mod_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_mod_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_mod_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_mod_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_mod_05(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_mod_06(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+
+void dial_render_set_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_set_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_set_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_set_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_set_05(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_set_06(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_set_07(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+
+void dial_render_gam_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_gam_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_gam_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_gam_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+
+void dial_render_ovl_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_ovl_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_ovl_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_ovl_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+
 #endif /* DIAL_SCREENS_H */

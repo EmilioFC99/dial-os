@@ -10,18 +10,22 @@
 #include "dial_icons.h"
 #include "dial_screens.h"
 #include "dial_app.h"
+#include "dial_media.h"
 
 int main(int argc, char **argv) {
     bool headless = false;
-    const char *screen_id = "NP-01";
-    const char *out_path  = "/tmp/dialos_snapshot.png";
-    dial_mode_t mode      = DIAL_MODE_NIGHT;
+    const char *screen_id  = "NP-01";
+    const char *out_path   = "/tmp/dialos_snapshot.png";
+    const char *music_dir  = NULL;
+    dial_mode_t mode       = DIAL_MODE_NIGHT;
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--headless") == 0) {
             headless = true;
         } else if (strcmp(argv[i], "--screen") == 0 && i + 1 < argc) {
             screen_id = argv[++i];
+        } else if (strcmp(argv[i], "--music") == 0 && i + 1 < argc) {
+            music_dir = argv[++i];
         } else if (strcmp(argv[i], "--mode") == 0 && i + 1 < argc) {
             const char *m = argv[++i];
             mode = (strcmp(m, "day") == 0 || strcmp(m, "DAY") == 0)
@@ -35,6 +39,13 @@ int main(int argc, char **argv) {
     if (!dial_hal_init(headless)) {
         fprintf(stderr, "Failed to initialize DialOS HAL\n");
         return 1;
+    }
+
+    if (!headless) {
+        const char *target_music = music_dir ? music_dir : "/Users/emilio.flores/Music/Au5";
+        dial_media_scan_root(target_music);
+    } else if (music_dir) {
+        dial_media_scan_root(music_dir);
     }
 
     dial_app_t *app = dial_app_get_state();

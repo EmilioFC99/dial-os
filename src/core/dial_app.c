@@ -1,5 +1,6 @@
 #include "dial_app.h"
 #include "dial_screens.h"
+#include "dial_media.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -73,6 +74,12 @@ void dial_app_init(dial_app_t *app, const char *initial_screen_id, dial_mode_t m
     app->delete_hold_progress= 0.0f;
     app->file_deleted        = false;
 
+    app->mode_picker_focus   = 0; /* Focus mode 0 ("Player") on MOD-00 */
+    app->settings_focus_idx  = 2; /* Focus row 2 ("Bluetooth") on SET-01 */
+    app->dac_filter_idx      = 0; /* Applied filter 0 ("Fast roll-off · linear") on SET-03 */
+    app->eq_focus_band       = 4; /* Focus band 4 ("1k") on SET-04 */
+    app->pong_paddle_deg     = 202.0f; /* Default 182°..222° paddle center on GAM-02 */
+
     dial_gesture_fsm_init(&app->fsm, is_np01_screen(init_id), 330000u);
     app->fsm.current_seek_deg = app->seek_progress * 360.0f;
 }
@@ -131,8 +138,16 @@ static void handle_disambiguated_event(dial_app_t *app,
     if (strcmp(scr, "NP-01") == 0) {
         if (ev->type == DIAL_EVENT_SEEK) {
             app->seek_progress = ev->seek_progress;
+            dial_media_seek_progress(app->seek_progress);
         } else if (ev->type == DIAL_EVENT_PLAY_PAUSE) {
             app->is_playing = !app->is_playing;
+            dial_media_set_playing(app->is_playing);
+        } else if (ev->type == DIAL_EVENT_SWIPE_LEFT) {
+            dial_media_next_track();
+            app->is_playing = true;
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_media_prev_track();
+            app->is_playing = true;
         } else if (ev->type == DIAL_EVENT_NP_QUICK_ACTIONS) {
             /* Check if bottom '^' chevron (y >= 312) was tapped -> open NP-04 */
             if (ev->y >= 312.0f && fabsf(ev->x - 180.0f) <= 32.0f) {
@@ -144,6 +159,7 @@ static void handle_disambiguated_event(dial_app_t *app,
             dial_app_set_screen(app, "NP-04");
         } else if (ev->type == DIAL_EVENT_RIM_DETENT) {
             app->volume = clamp_int(app->volume + ev->detent_steps * 2, 0, 100);
+            dial_media_set_volume(app->volume);
             app->volume_hud_until_ms = now_ms + 800u;
             dial_app_set_screen(app, "NP-05");
         }
@@ -201,9 +217,9 @@ static void handle_disambiguated_event(dial_app_t *app,
 
     /* 7. Control Center (CC-01): 3x2 grid of 66px pucks */
     if (strcmp(scr, "CC-01") == 0) {
+        const float col_cx[3] = { 93.0f, 180.0f, 267.0f };
+        const float row_cy[2] = { 131.0f, 219.0f };
         if (ev->type == DIAL_EVENT_TAP) {
-            const float col_cx[3] = { 93.0f, 180.0f, 267.0f };
-            const float row_cy[2] = { 131.0f, 219.0f };
             for (int r = 0; r < 2; ++r) {
                 for (int c = 0; c < 3; ++c) {
                     if (hypotf(ev->x - col_cx[c], ev->y - row_cy[r]) <= 34.0f) {
@@ -225,6 +241,16 @@ static void handle_disambiguated_event(dial_app_t *app,
             }
             /* Tap outside pucks closes CC-01 */
             dial_app_set_screen(app, app->prev_screen_id[0] ? app->prev_screen_id : "NP-01");
+        } else if (ev->type == DIAL_EVENT_HOLD_450MS) {
+            /* Locked Rule #5: Hold (450ms) on Wi-Fi, Bluetooth, or Mode opens submenu */
+            if (hypotf(ev->x - col_cx[0], ev->y - row_cy[0]) <= 34.0f) {
+                dial_app_set_screen(app, "SET-06");
+            } else if (hypotf(ev->x - col_cx[1], ev->y - row_cy[0]) <= 34.0f) {
+                dial_app_set_screen(app, "SET-07");
+            } else if (hypotf(ev->x - col_cx[2], ev->y - row_cy[0]) <= 34.0f) {
+                app->mode_picker_focus = app->active_mode_idx % 6;
+                dial_app_set_screen(app, "MOD-00");
+            }
         } else if (ev->type == DIAL_EVENT_BOTTOM_SWIPE_UP) {
             dial_app_set_screen(app, app->prev_screen_id[0] ? app->prev_screen_id : "NP-01");
         } else if (ev->type == DIAL_EVENT_RIM_DETENT) {
@@ -246,13 +272,10 @@ static void handle_disambiguated_event(dial_app_t *app,
         } else if (ev->type == DIAL_EVENT_HOLD_450MS) {
             dial_app_set_screen(app, "HOM-03");
         } else if (ev->type == DIAL_EVENT_TAP && ev->r < 90.0f) {
-            if (app->home_focus_idx == 0) {
-                dial_app_set_screen(app, "NP-01");
-            } else if (app->home_focus_idx == 1) {
-                dial_app_set_screen(app, "LIB-01");
-            } else if (app->home_focus_idx == 2) {
-                dial_app_set_screen(app, "FIL-01");
-            }
+            static const char *const G_HOME_TARGET[6] = {
+                "NP-01", "LIB-01", "FIL-01", "MOD-00", "SET-01", "GAM-01"
+            };
+            dial_app_set_screen(app, G_HOME_TARGET[app->home_focus_idx % 6]);
         }
         return;
     }
@@ -277,17 +300,23 @@ static void handle_disambiguated_event(dial_app_t *app,
 
     /* 10. Albums Cover Arc (LIB-02) — Locked Rule #6: Horizontal Swipe AND Right Rim Scroll */
     if (strcmp(scr, "LIB-02") == 0) {
+        int n_alb = (dial_media_is_loaded() && dial_media_get_album_count() > 0)
+                        ? (int)dial_media_get_album_count()
+                        : 6;
         if (ev->type == DIAL_EVENT_RIM_DETENT) {
-            int next = (app->album_focus_idx + ev->detent_steps) % 6;
-            if (next < 0) next += 6;
+            int next = (app->album_focus_idx + ev->detent_steps) % n_alb;
+            if (next < 0) next += n_alb;
             app->album_focus_idx = next;
         } else if (ev->type == DIAL_EVENT_SWIPE_LEFT) {
-            app->album_focus_idx = (app->album_focus_idx + 1) % 6;
+            app->album_focus_idx = (app->album_focus_idx + 1) % n_alb;
             dial_hal_haptic_tick(10);
         } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
-            app->album_focus_idx = (app->album_focus_idx + 5) % 6;
+            app->album_focus_idx = (app->album_focus_idx + n_alb - 1) % n_alb;
             dial_hal_haptic_tick(10);
         } else if (ev->type == DIAL_EVENT_TAP && ev->r < 95.0f) {
+            if (dial_media_is_loaded()) {
+                app->track_focus_idx = 0;
+            }
             dial_app_set_screen(app, "LIB-03");
         }
         return;
@@ -295,8 +324,15 @@ static void handle_disambiguated_event(dial_app_t *app,
 
     /* 11. Track List (LIB-03) */
     if (strcmp(scr, "LIB-03") == 0) {
+        int max_tr = 4;
+        if (dial_media_is_loaded() && dial_media_get_album_count() > 0) {
+            const dial_album_info_t *alb = dial_media_get_album((size_t)app->album_focus_idx);
+            if (alb && alb->track_count > 0) {
+                max_tr = (int)alb->track_count - 1;
+            }
+        }
         if (ev->type == DIAL_EVENT_RIM_DETENT) {
-            app->track_focus_idx = clamp_int(app->track_focus_idx + ev->detent_steps, 0, 4);
+            app->track_focus_idx = clamp_int(app->track_focus_idx + ev->detent_steps, 0, max_tr);
         } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
             dial_app_set_screen(app, "LIB-02");
         } else if (ev->type == DIAL_EVENT_TAP) {
@@ -305,6 +341,9 @@ static void handle_disambiguated_event(dial_app_t *app,
             } else if (ev->r < 140.0f) {
                 app->playing_track_idx = app->track_focus_idx;
                 app->is_playing = true;
+                if (dial_media_is_loaded()) {
+                    dial_media_play_track((size_t)app->album_focus_idx, (size_t)app->track_focus_idx);
+                }
                 dial_hal_send_ipc(DIAL_CMD_PLAY_PAUSE, "play");
                 dial_app_set_screen(app, "NP-01");
             }
@@ -330,17 +369,34 @@ static void handle_disambiguated_event(dial_app_t *app,
 
     /* 13. Browse Files (FIL-01) — Locked Rule #7: Long-press opens FIL-02 Action Sheet */
     if (strcmp(scr, "FIL-01") == 0) {
+        int max_fs = (dial_media_is_loaded() && dial_media_get_fs_entry_count() > 0)
+                         ? ((int)dial_media_get_fs_entry_count() - 1)
+                         : 4;
         if (ev->type == DIAL_EVENT_RIM_DETENT) {
-            app->file_focus_idx = clamp_int(app->file_focus_idx + ev->detent_steps, 0, 4);
+            app->file_focus_idx = clamp_int(app->file_focus_idx + ev->detent_steps, 0, max_fs);
         } else if (ev->type == DIAL_EVENT_HOLD_450MS) {
             dial_app_set_screen(app, "FIL-02");
         } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
             dial_app_set_screen(app, "HOM-01");
         } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
-            if (app->file_focus_idx == 0) {
-                dial_app_set_screen(app, "FIL-04");
-            } else if (app->file_focus_idx == 2 || app->file_focus_idx == 3) {
-                dial_app_set_screen(app, "NP-01");
+            if (dial_media_is_loaded() && dial_media_get_fs_entry_count() > 0) {
+                const dial_fs_entry_t *ent = dial_media_get_fs_entry((size_t)app->file_focus_idx);
+                if (ent) {
+                    if (ent->is_dir) {
+                        dial_media_browse_dir(ent->full_path);
+                        app->file_focus_idx = 0;
+                    } else {
+                        dial_media_play_file(ent->full_path, ent->name, "Au5", dial_media_get_current_dir_label());
+                        app->is_playing = true;
+                        dial_app_set_screen(app, "NP-01");
+                    }
+                }
+            } else {
+                if (app->file_focus_idx == 0) {
+                    dial_app_set_screen(app, "FIL-04");
+                } else if (app->file_focus_idx == 2 || app->file_focus_idx == 3) {
+                    dial_app_set_screen(app, "NP-01");
+                }
             }
         }
         return;
@@ -379,6 +435,131 @@ static void handle_disambiguated_event(dial_app_t *app,
     if (strcmp(scr, "FIL-04") == 0) {
         if (ev->type == DIAL_EVENT_TAP || ev->type == DIAL_EVENT_SWIPE_RIGHT) {
             dial_app_set_screen(app, "FIL-01");
+        }
+        return;
+    }
+
+    /* 17. Operating Modes Picker & Dashboards (MOD-00 .. MOD-06) */
+    if (strcmp(scr, "MOD-00") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            int next = (app->mode_picker_focus + ev->detent_steps) % 6;
+            if (next < 0) next += 6;
+            app->mode_picker_focus = next;
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "HOM-01");
+        } else if (ev->type == DIAL_EVENT_TAP) {
+            if (ev->r < 72.0f) {
+                app->active_mode_idx = app->mode_picker_focus % 6;
+                char target[16];
+                snprintf(target, sizeof(target), "MOD-0%d", (app->active_mode_idx % 6) + 1);
+                dial_app_set_screen(app, target);
+            } else {
+                for (int i = 0; i < 6; ++i) {
+                    float px = 0.0f, py = 0.0f;
+                    dial_polar_to_xy((float)(i * 60), 116.0f, &px, &py);
+                    if (hypotf(ev->x - px, ev->y - py) <= 30.0f) {
+                        app->mode_picker_focus = i;
+                        app->active_mode_idx   = i;
+                        char target[16];
+                        snprintf(target, sizeof(target), "MOD-0%d", i + 1);
+                        dial_app_set_screen(app, target);
+                        return;
+                    }
+                }
+            }
+        }
+        return;
+    }
+    if (strncmp(scr, "MOD-0", 5) == 0) {
+        if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "MOD-00");
+        } else if (ev->type == DIAL_EVENT_TAP && strcmp(scr, "MOD-02") == 0) {
+            app->usb_charge = !app->usb_charge;
+        }
+        return;
+    }
+
+    /* 18. Settings Screens (SET-01 .. SET-07) */
+    if (strcmp(scr, "SET-01") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->settings_focus_idx = clamp_int(app->settings_focus_idx + ev->detent_steps, 0, 4);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "HOM-01");
+        } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
+            static const char *const G_SET_TARGETS[5] = {
+                "SET-02", "SET-05", "SET-07", "SET-06", "OVL-03"
+            };
+            dial_app_set_screen(app, G_SET_TARGETS[app->settings_focus_idx % 5]);
+        }
+        return;
+    }
+    if (strcmp(scr, "SET-02") == 0) {
+        if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "SET-01");
+        } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
+            if (ev->y < 115.0f) {
+                dial_app_set_screen(app, "SET-03");
+            } else if (ev->y < 170.0f) {
+                app->high_gain = !app->high_gain;
+            } else if (ev->y < 220.0f) {
+                dial_app_set_screen(app, "SET-04");
+            }
+        }
+        return;
+    }
+    if (strcmp(scr, "SET-03") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->dac_filter_idx = clamp_int(app->dac_filter_idx + ev->detent_steps, 0, 4);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT || ev->type == DIAL_EVENT_TAP) {
+            dial_app_set_screen(app, "SET-02");
+        }
+        return;
+    }
+    if (strcmp(scr, "SET-04") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->eq_focus_band = clamp_int(app->eq_focus_band + ev->detent_steps, 0, 9);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "SET-02");
+        }
+        return;
+    }
+    if (strcmp(scr, "SET-05") == 0 || strcmp(scr, "SET-06") == 0 || strcmp(scr, "SET-07") == 0) {
+        if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "SET-01");
+        } else if (ev->type == DIAL_EVENT_TAP && strcmp(scr, "SET-05") == 0) {
+            app->mode = (app->mode == DIAL_MODE_NIGHT) ? DIAL_MODE_DAY : DIAL_MODE_NIGHT;
+        }
+        return;
+    }
+
+    /* 19. Rotary Arcade & Overlays (GAM-01..04, OVL-01..04) */
+    if (strcmp(scr, "GAM-01") == 0) {
+        if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "HOM-01");
+        } else if (ev->type == DIAL_EVENT_TAP) {
+            if (ev->y < 158.0f)      dial_app_set_screen(app, "GAM-02");
+            else if (ev->y < 208.0f) dial_app_set_screen(app, "GAM-03");
+            else                     dial_app_set_screen(app, "GAM-04");
+        }
+        return;
+    }
+    if (strcmp(scr, "GAM-02") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->pong_paddle_deg = dial_normalize_deg(app->pong_paddle_deg + (float)ev->detent_steps * 8.0f);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "GAM-01");
+        }
+        return;
+    }
+    if (strcmp(scr, "GAM-03") == 0 || strcmp(scr, "GAM-04") == 0) {
+        if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "GAM-01");
+        }
+        return;
+    }
+    if (strncmp(scr, "OVL-", 4) == 0) {
+        if (ev->type == DIAL_EVENT_TAP || ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "HOM-01");
         }
         return;
     }
@@ -427,6 +608,15 @@ dial_gesture_event_t dial_app_tick(dial_app_t *app, uint32_t now_ms) {
         dial_app_set_screen(app, "NP-01");
     }
 
+    /* Sync real hardware/CoreAudio playback progress onto r=38px vinyl seek ring */
+    if (dial_media_is_loaded() && app->is_playing && !app->fsm.touch_active) {
+        float live_prog = dial_media_get_progress(NULL, NULL);
+        if (live_prog >= 0.0f && live_prog <= 0.999f) {
+            app->seek_progress       = live_prog;
+            app->fsm.current_seek_deg = live_prog * 360.0f;
+        }
+    }
+
     ev = dial_gesture_fsm_tick(&app->fsm, now_ms);
     handle_disambiguated_event(app, &ev, now_ms);
     return ev;
@@ -441,10 +631,12 @@ void dial_app_on_key(dial_app_t *app, const dial_key_event_t *key, const dial_fb
     switch (key->key) {
         case DIAL_KEY_PLAYPAUSE:
             app->is_playing = !app->is_playing;
+            dial_media_set_playing(app->is_playing);
             dial_hal_send_ipc(DIAL_CMD_PLAY_PAUSE, app->is_playing ? "play" : "pause");
             break;
         case DIAL_KEY_VOLUP:
             app->volume = clamp_int(app->volume + 2, 0, 100);
+            dial_media_set_volume(app->volume);
             if (strcmp(app->screen_id, "NP-01") == 0 || strcmp(app->screen_id, "NP-05") == 0) {
                 app->volume_hud_until_ms = key->timestamp_ms + 800u;
                 dial_app_set_screen(app, "NP-05");
@@ -452,6 +644,7 @@ void dial_app_on_key(dial_app_t *app, const dial_key_event_t *key, const dial_fb
             break;
         case DIAL_KEY_VOLDOWN:
             app->volume = clamp_int(app->volume - 2, 0, 100);
+            dial_media_set_volume(app->volume);
             if (strcmp(app->screen_id, "NP-01") == 0 || strcmp(app->screen_id, "NP-05") == 0) {
                 app->volume_hud_until_ms = key->timestamp_ms + 800u;
                 dial_app_set_screen(app, "NP-05");

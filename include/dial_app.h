@@ -43,6 +43,13 @@ typedef struct {
     float              delete_hold_progress;/* 0.0..1.0 ring/button fill during 600ms hold on FIL-03 */
     bool               file_deleted;        /* Set true after 600ms hold on FIL-03 */
 
+    /* Modes, Settings & Arcade State (MOD-00..06, SET-01..07, GAM-01..04) */
+    int                mode_picker_focus;   /* 0..5 focused mode puck on MOD-00 */
+    int                settings_focus_idx;  /* 0..4 focused category row on SET-01 */
+    int                dac_filter_idx;      /* 0..4 applied CS43131 DAC filter on SET-03 */
+    int                eq_focus_band;       /* 0..9 focused Parametric EQ band on SET-04 */
+    float              pong_paddle_deg;     /* Paddle center angle on GAM-02 Dial Pong */
+
     /* Embedded Gesture Disambiguation FSM */
     dial_gesture_fsm_t fsm;
 } dial_app_t;

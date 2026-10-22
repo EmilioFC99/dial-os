@@ -12,7 +12,7 @@ ifneq ($(strip $(SDL2_LIBS)),)
     CFLAGS += -DDIAL_HAS_SDL2 $(SDL2_CFLAGS)
     LIBS   += $(SDL2_LIBS)
 else ifeq ($(UNAME_S),Darwin)
-    LIBS   += -framework Cocoa -framework CoreGraphics
+    LIBS   += -framework Cocoa -framework CoreGraphics -framework AudioToolbox -framework ImageIO -framework CoreFoundation
 endif
 
 SAN_FLAGS := -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
@@ -20,23 +20,47 @@ OPT_FLAGS := -O2
 
 BUILD_DIR := build
 CORE_SRCS := src/hal/hal_sdl2.c \
+             src/hal/hal_media.c \
              src/core/dial_polar.c \
              src/core/dial_gestures.c \
+             src/core/dial_bt.c \
+             src/core/dial_dac.c \
              src/core/dial_app.c \
              src/ui/dial_assets.c \
              src/ui/dial_draw.c \
              src/ui/dial_icons.c \
              src/screens/dial_screens_core_np.c \
-             src/screens/dial_screens_lib_fil.c
+             src/screens/dial_screens_lib_fil.c \
+             src/screens/dial_screens_mod_set.c \
+             src/screens/dial_screens_gam_ovl.c
+
+DISC_SRCS := src/hal/hal_disc.c \
+             src/hal/hal_media.c \
+             src/core/dial_polar.c \
+             src/core/dial_gestures.c \
+             src/core/dial_bt.c \
+             src/core/dial_dac.c \
+             src/core/dial_app.c \
+             src/ui/dial_assets.c \
+             src/ui/dial_draw.c \
+             src/ui/dial_icons.c \
+             src/screens/dial_screens_core_np.c \
+             src/screens/dial_screens_lib_fil.c \
+             src/screens/dial_screens_mod_set.c \
+             src/screens/dial_screens_gam_ovl.c
 
 SIM_BIN   := $(BUILD_DIR)/dialos-sim
+DISC_BIN  := $(BUILD_DIR)/dialos-disc
 TEST_POL  := $(BUILD_DIR)/test_polar_gestures
 TEST_DRW  := $(BUILD_DIR)/test_draw_primitives
 TEST_V030 := $(BUILD_DIR)/test_screens_v030
 TEST_V040 := $(BUILD_DIR)/test_screens_v040
+TEST_V050 := $(BUILD_DIR)/test_screens_v050
+TEST_BT   := $(BUILD_DIR)/test_bt_cache
+TEST_DAC  := $(BUILD_DIR)/test_dac_relay
 TEST_UI   := $(BUILD_DIR)/test_ui_interaction
 
-.PHONY: all sim assets test clean
+.PHONY: all sim disc-check assets test clean
 
 all: sim
 
@@ -64,14 +88,26 @@ $(TEST_V030): $(CORE_SRCS) tests/test_screens_v030.c | $(BUILD_DIR)
 $(TEST_V040): $(CORE_SRCS) tests/test_screens_v040.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_screens_v040.c -o $(TEST_V040) $(LIBS)
 
+$(TEST_V050): $(CORE_SRCS) tests/test_screens_v050.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_screens_v050.c -o $(TEST_V050) $(LIBS)
+
+$(TEST_BT): $(CORE_SRCS) tests/test_bt_cache.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_bt_cache.c -o $(TEST_BT) $(LIBS)
+
+$(TEST_DAC): $(CORE_SRCS) tests/test_dac_relay.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_dac_relay.c -o $(TEST_DAC) $(LIBS)
+
 $(TEST_UI): $(CORE_SRCS) tests/test_ui_interaction.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_ui_interaction.c -o $(TEST_UI) $(LIBS)
 
-test: $(TEST_POL) $(TEST_DRW) $(TEST_V030) $(TEST_V040) $(TEST_UI) $(SIM_BIN)
+test: $(TEST_POL) $(TEST_DRW) $(TEST_V030) $(TEST_V040) $(TEST_V050) $(TEST_BT) $(TEST_DAC) $(TEST_UI) $(SIM_BIN)
 	./$(TEST_POL)
 	./$(TEST_DRW)
 	./$(TEST_V030)
 	./$(TEST_V040)
+	./$(TEST_V050)
+	./$(TEST_BT)
+	./$(TEST_DAC)
 	./$(TEST_UI)
 	./$(SIM_BIN) --headless --screen SYS-00 --mode night --out /tmp/dialos_v030_sys00.png
 	./$(SIM_BIN) --headless --screen LCK-01 --mode night --out /tmp/dialos_v030_lck01.png
@@ -94,6 +130,16 @@ test: $(TEST_POL) $(TEST_DRW) $(TEST_V030) $(TEST_V040) $(TEST_UI) $(SIM_BIN)
 	./$(SIM_BIN) --headless --screen FIL-02 --mode night --out /tmp/dialos_v040_fil02.png
 	./$(SIM_BIN) --headless --screen FIL-03 --mode night --out /tmp/dialos_v040_fil03.png
 	./$(SIM_BIN) --headless --screen FIL-04 --mode day   --out /tmp/dialos_v040_fil04_day.png
+	./$(SIM_BIN) --headless --screen MOD-00 --mode night --out /tmp/dialos_v050_mod00.png
+	./$(SIM_BIN) --headless --screen MOD-02 --mode night --out /tmp/dialos_v050_mod02.png
+	./$(SIM_BIN) --headless --screen SET-04 --mode night --out /tmp/dialos_v050_set04.png
+	./$(SIM_BIN) --headless --screen SET-05 --mode day   --out /tmp/dialos_v050_set05_day.png
+	./$(SIM_BIN) --headless --screen SET-07 --mode night --out /tmp/dialos_v050_set07.png
+	./$(SIM_BIN) --headless --screen GAM-02 --mode night --out /tmp/dialos_v050_gam02.png
+	./$(SIM_BIN) --headless --screen GAM-03 --mode night --out /tmp/dialos_v050_gam03.png
+	./$(SIM_BIN) --headless --screen GAM-04 --mode night --out /tmp/dialos_v050_gam04.png
+	./$(SIM_BIN) --headless --screen OVL-03 --mode night --out /tmp/dialos_v050_ovl03.png
+	./$(SIM_BIN) --headless --screen OVL-04 --mode night --out /tmp/dialos_v050_ovl04.png
 
 clean:
 	rm -rf $(BUILD_DIR)

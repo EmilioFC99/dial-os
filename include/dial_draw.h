@@ -166,6 +166,16 @@ void dial_draw_art(dial_fb_t *fb,
                    bool vinyl_grooves,
                    float spin_deg);
 
+void dial_draw_art_tex(dial_fb_t *fb,
+                       const dial_palette_t *pal,
+                       const uint16_t *custom_tex_rgb565,
+                       dial_art_kind_t fallback_kind,
+                       int cx,
+                       int cy,
+                       int diameter,
+                       bool vinyl_grooves,
+                       float spin_deg);
+
 /* Typography & .train Horizontal Marquee Text Engine */
 int  dial_measure_text(const char *text, int font_px, int letter_spacing_px);
 void dial_draw_text(dial_fb_t *fb,

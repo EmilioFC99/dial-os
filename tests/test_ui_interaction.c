@@ -287,6 +287,62 @@ static void test_interactive_fil01_long_press_and_600ms_delete(void) {
     assert(strcmp(app->screen_id, "FIL-01") == 0);
 }
 
+/* 7. Test CC-01 450ms Hold on Mode/BT Pucks -> MOD-00 / SET-07 & GAM-02 Dial Pong Rim Paddle */
+static void test_interactive_modes_settings_and_arcade_flows(void) {
+    dial_fb_t *fb = dial_hal_get_framebuffer();
+    dial_app_t *app = dial_app_get_state();
+    dial_app_init(app, "CC-01", DIAL_MODE_NIGHT);
+
+    uint32_t ts = 20000u;
+    /* Locked Rule #5: Hold (450ms) on Mode puck (cx=267, cy=131) opens MOD-00 */
+    dial_touch_event_t hold_mode_down = { .x = 267.0f, .y = 131.0f, .pressed = true, .timestamp_ms = ts };
+    dial_app_on_touch(app, &hold_mode_down);
+    dial_app_tick(app, ts + 460u);
+    dial_touch_event_t hold_mode_up = { .x = 267.0f, .y = 131.0f, .pressed = false, .timestamp_ms = ts + 480u };
+    dial_app_on_touch(app, &hold_mode_up);
+    ts += 500u;
+    assert(strcmp(app->screen_id, "MOD-00") == 0);
+
+    /* Rim scroll clockwise on MOD-00 focuses mode 1 (USB DAC) */
+    float x = 0.0f, y = 0.0f;
+    dial_polar_to_xy(60.0f, 166.0f, &x, &y);
+    dial_touch_event_t rm0 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts };
+    dial_app_on_touch(app, &rm0);
+    dial_polar_to_xy(68.0f, 166.0f, &x, &y);
+    dial_touch_event_t rm1 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts + 80u };
+    dial_app_on_touch(app, &rm1);
+    dial_polar_to_xy(76.0f, 166.0f, &x, &y);
+    dial_touch_event_t rm2 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts + 160u };
+    dial_app_on_touch(app, &rm2);
+    dial_touch_event_t rm3 = { .x = x, .y = y, .pressed = false, .timestamp_ms = ts + 180u };
+    dial_app_on_touch(app, &rm3);
+    ts += 200u;
+    assert(app->mode_picker_focus == 1);
+
+    /* Tap center of MOD-00 (180, 180) -> switches active_mode_idx to 1 and opens MOD-02 (USB DAC) */
+    sim_tap(app, 180.0f, 180.0f, &ts);
+    assert(app->active_mode_idx == 1);
+    assert(strcmp(app->screen_id, "MOD-02") == 0);
+    dial_app_render(app, fb, ts);
+
+    /* Open GAM-02 (Dial Pong) and trace rim to rotate Moss paddle arc */
+    dial_app_set_screen(app, "GAM-02");
+    float init_pad = app->pong_paddle_deg;
+    dial_polar_to_xy(60.0f, 166.0f, &x, &y);
+    dial_touch_event_t p0 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts };
+    dial_app_on_touch(app, &p0);
+    dial_polar_to_xy(68.0f, 166.0f, &x, &y);
+    dial_touch_event_t p1 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts + 80u };
+    dial_app_on_touch(app, &p1);
+    dial_polar_to_xy(76.0f, 166.0f, &x, &y);
+    dial_touch_event_t p2 = { .x = x, .y = y, .pressed = true, .timestamp_ms = ts + 160u };
+    dial_app_on_touch(app, &p2);
+    dial_touch_event_t p3 = { .x = x, .y = y, .pressed = false, .timestamp_ms = ts + 180u };
+    dial_app_on_touch(app, &p3);
+    assert(fabsf(app->pong_paddle_deg - init_pad) >= 8.0f);
+    dial_app_render(app, fb, ts + 200u);
+}
+
 int main(void) {
     dial_hal_init(true);
     test_interactive_np01_seek_and_render();
@@ -295,6 +351,7 @@ int main(void) {
     test_interactive_lock_to_home_to_library();
     test_interactive_lib02_cover_arc_swipe_and_rim_scroll();
     test_interactive_fil01_long_press_and_600ms_delete();
+    test_interactive_modes_settings_and_arcade_flows();
     dial_hal_shutdown();
     printf("[PASS] test_ui_interaction: all live interactive UI flows & framebuffer mutations verified.\n");
     return 0;

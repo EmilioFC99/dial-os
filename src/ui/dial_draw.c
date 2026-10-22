@@ -528,14 +528,9 @@ void dial_draw_text_marquee(dial_fb_t *fb,
                             uint32_t tick_ms) {
     if (!fb || !text || clip_w <= 0) return;
     int text_w = dial_measure_text(text, font_px, 0);
-    if (text_w <= clip_w) {
-        draw_text_clipped(fb, text, clip_x, clip_y, font_px, rgb, alpha,
-                          clip_x, clip_x + clip_w);
-        return;
-    }
-
-    /* Smooth horizontal train-slide marquee (40 px/s with 600ms end pause) */
-    int overflow = text_w - clip_w;
+    /* Smooth horizontal train-slide marquee (Locked Rule #8: .train oscillates when r->marquee is set) */
+    int overflow = (text_w > clip_w) ? (text_w - clip_w) : 18;
+    if (overflow < 16) overflow = 16;
     uint32_t cycle_ms = (uint32_t)(overflow * 25 + 1200);
     uint32_t phase_ms = tick_ms % cycle_ms;
     int offset_px = 0;
@@ -895,20 +890,23 @@ static uint32_t sample_cover_bilinear(const uint16_t *tex, float u01, float v01)
     return dial_color_lerp(top, bot, ty);
 }
 
-void dial_draw_art(dial_fb_t *fb,
-                   const dial_palette_t *pal,
-                   dial_art_kind_t kind,
-                   int cx,
-                   int cy,
-                   int diameter,
-                   bool vinyl_grooves,
-                   float spin_deg) {
+void dial_draw_art_tex(dial_fb_t *fb,
+                       const dial_palette_t *pal,
+                       const uint16_t *custom_tex_rgb565,
+                       dial_art_kind_t fallback_kind,
+                       int cx,
+                       int cy,
+                       int diameter,
+                       bool vinyl_grooves,
+                       float spin_deg) {
     if (!fb || !pal || diameter <= 0) return;
     const float rad = (float)diameter * 0.5f;
     const float spin_rad = spin_deg * ((float)M_PI / 180.0f);
     const float cos_s = cosf(spin_rad);
     const float sin_s = sinf(spin_rad);
-    const uint16_t *tex = g_dial_vinyl_covers[(int)kind % DIAL_VINYL_TEX_COUNT];
+    const uint16_t *tex = custom_tex_rgb565
+                              ? custom_tex_rgb565
+                              : g_dial_vinyl_covers[(int)fallback_kind % DIAL_VINYL_TEX_COUNT];
 
     int min_x = (int)floorf((float)cx - rad - 1.0f);
     int min_y = (int)floorf((float)cy - rad - 1.0f);
@@ -958,4 +956,15 @@ void dial_draw_art(dial_fb_t *fb,
             dial_draw_pixel_aa(fb, px, py, col, (uint8_t)(255.0f * cov + 0.5f));
         }
     }
+}
+
+void dial_draw_art(dial_fb_t *fb,
+                   const dial_palette_t *pal,
+                   dial_art_kind_t kind,
+                   int cx,
+                   int cy,
+                   int diameter,
+                   bool vinyl_grooves,
+                   float spin_deg) {
+    dial_draw_art_tex(fb, pal, NULL, kind, cx, cy, diameter, vinyl_grooves, spin_deg);
 }
