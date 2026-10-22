@@ -23,6 +23,7 @@ CORE_SRCS := src/hal/hal_sdl2.c \
              src/core/dial_polar.c \
              src/core/dial_gestures.c \
              src/core/dial_app.c \
+             src/ui/dial_assets.c \
              src/ui/dial_draw.c \
              src/ui/dial_icons.c \
              src/screens/dial_screens_core_np.c
@@ -33,9 +34,13 @@ TEST_DRW  := $(BUILD_DIR)/test_draw_primitives
 TEST_V030 := $(BUILD_DIR)/test_screens_v030
 TEST_UI   := $(BUILD_DIR)/test_ui_interaction
 
-.PHONY: all sim test clean
+.PHONY: all sim assets test clean
 
 all: sim
+
+assets: tools/bake_fjall_assets.m | $(BUILD_DIR)
+	$(CC) -O2 -Wall -Wextra -Werror tools/bake_fjall_assets.m -framework Foundation -framework CoreGraphics -framework CoreText -o $(BUILD_DIR)/bake_fjall_assets
+	./$(BUILD_DIR)/bake_fjall_assets
 
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)

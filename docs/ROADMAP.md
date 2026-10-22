@@ -68,7 +68,8 @@ Before any C code is committed, `make test` MUST pass all four gates under `Addr
      - `1 touch` on `NP-01` toggles `NP-02` (Quick Actions); `2 touches` (`< 260 ms`) toggles Play/Pause (`DIAL_CMD_PLAY_PAUSE`).
      - Top pull-down (`y < 40px`) opens `CC-01`; bottom swipe-up (`y > 320px`) opens `NP-04` or unlocks `LCK-01/02`.
      - Outer rim (`r >= 150px`) fires `15°` detents (`3×` step when angular velocity `> 180°/s`).
-3. **2D Circular Drawing Engine (`src/ui/dial_draw.c`, `src/ui/dial_icons.c`):**
+3. **2D Circular Drawing Engine & Pre-Baked Asset Atlas (`src/ui/dial_draw.c`, `src/ui/dial_icons.c`, `src/ui/dial_assets.c`, `tools/bake_fjall_assets.m`):**
+   - CoreText 8-bit (`256-level grayscale alpha`) proportional anti-aliased font atlases (`10px..52px` Sans + `11px/13px` Mono) with full UTF-8 Nordic diacritics (`ä`, `ö`, `å`, `ø`, `·`, `–`, `—`) and CoreGraphics-rasterized bilinear-filtered `180×180` RGB565 Fjäll vinyl covers (`make assets`).
    - Anti-aliased thick arcs (`rimArc`, `scrollRim`, `r = 38px` inner progress ring).
    - Rounded rectangles, pills, chips, toggles, `72%` scrim blur/dim, circular clipping mask (`r = 180px`), and `.train` horizontal marquee text.
    - Vector icon renderer for all `70` Fjäll icons (`24×24` grid, `1.75px` stroke).

@@ -1,4 +1,5 @@
 #include "dial_hal.h"
+#include "dial_assets.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -482,5 +483,6 @@ size_t dial_hal_get_ipc_count(void) {
 
 size_t dial_hal_get_ram_usage_bytes(void) {
     return sizeof(g_fb) + sizeof(g_ipc_ring) +
+           sizeof(g_dial_font_atlas) + sizeof(g_dial_fonts) + sizeof(g_dial_vinyl_covers) +
            (size_t)(DIAL_SCREEN_HEIGHT * (DIAL_SCREEN_WIDTH * 4 + 1)) * 2u;
 }

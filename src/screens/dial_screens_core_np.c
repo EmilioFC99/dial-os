@@ -14,11 +14,11 @@ typedef struct {
 } app_pebble_spec_t;
 
 static const app_pebble_spec_t G_APPS[6] = {
-    { "np",    "Now Playing", "rings",  "Teardrop . Massive Attack",   0 },
-    { "lib",   "Library",     "note",   "1,428 tracks . 118 artists",  1 },
-    { "files", "Files",       "folder", "microSD . 482 GB free",       2 },
-    { "modes", "Modes",       "modes",  "Player . USB DAC . BT RX",    3 },
-    { "set",   "Settings",    "tune",   "Audio . Display . Power",     4 },
+    { "np",    "Now Playing", "rings",  "Teardrop · Massive Attack",   0 },
+    { "lib",   "Library",     "note",   "1,428 tracks · 118 artists",  1 },
+    { "files", "Files",       "folder", "microSD · 482 GB free",       2 },
+    { "modes", "Modes",       "modes",  "Player · USB DAC · BT RX",    3 },
+    { "set",   "Settings",    "tune",   "Audio · Display · Power",     4 },
     { "games", "Arcade",      "games",  "3 mini-games",                5 }
 };
 
@@ -121,7 +121,7 @@ static void render_lck_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tic
     dial_draw_icon(fb, DIAL_ICON_BATTERY, 152.0f, 34.0f, 16.0f, 1.75f, pal->text_2, 240);
     dial_draw_text(fb, "82%", 174, 36, 12, pal->text_2, 240, false);
 
-    dial_draw_text(fb, "TUESDAY . 22 OCT", DIAL_CENTER_X, 86, 11, pal->text_3, 255, true);
+    dial_draw_text(fb, "TUESDAY · 22 OCT", DIAL_CENTER_X, 86, 11, pal->text_3, 255, true);
     dial_draw_text(fb, "21:45", DIAL_CENTER_X, 112, 52, pal->text_1, 255, true);
     dial_draw_text(fb, "Nothing playing", DIAL_CENTER_X, 184, 13, pal->text_2, 255, true);
 
@@ -208,7 +208,7 @@ static void render_home_carousel(dial_fb_t *fb, const dial_palette_t *pal, int f
         dot_x += (int)w + 5;
     }
 
-    dial_draw_hint(fb, pal, NULL, "Trace rim . tap to open", 0);
+    dial_draw_hint(fb, pal, NULL, "Trace rim · tap to open", 0);
     dial_draw_circle_mask(fb);
 }
 
@@ -296,7 +296,7 @@ static void render_cc_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
     draw_cc_puck(fb, pal, col_cx[1], row_cy[1], "usb_charge", app->usb_charge ? pal->moss       : 0);
     draw_cc_puck(fb, pal, col_cx[2], row_cy[1], "lock",       app->touch_locked ? pal->moss     : 0);
 
-    dial_draw_hint(fb, pal, NULL, "Tap . toggle   Hold . menu", 0);
+    dial_draw_hint(fb, pal, NULL, "Tap · toggle   Hold · menu", 0);
     dial_draw_circle_mask(fb);
 }
 
@@ -338,7 +338,7 @@ static void render_np_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
 
     dial_draw_text(fb, "Teardrop",         DIAL_CENTER_X, 108, 22, pal->text_1, 255, true);
     dial_draw_text(fb, "Massive Attack",   DIAL_CENTER_X, 138, 13, pal->moss,   255, true);
-    dial_draw_text(fb, "Mezzanine . 1998", DIAL_CENTER_X, 158, 12, pal->text_2, 255, true);
+    dial_draw_text(fb, "Mezzanine · 1998", DIAL_CENTER_X, 158, 12, pal->text_2, 255, true);
 
     const struct {
         float       deg;
@@ -395,7 +395,7 @@ static void render_np_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
     dial_draw_text(fb, "Gentle impulsion",           DIAL_CENTER_X, 206, 13, pal->text_2, 255, true);
     dial_draw_text(fb, "Shakes me, makes me lighter",DIAL_CENTER_X, 234, 13, pal->text_3, 255, true);
 
-    dial_draw_hint(fb, pal, NULL, "Synced . .lrc sidecar", 0);
+    dial_draw_hint(fb, pal, NULL, "Synced · .lrc sidecar", 0);
     dial_draw_circle_mask(fb);
 }
 
@@ -412,7 +412,7 @@ static void render_np_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
 
     dial_draw_text(fb, "TRACK DETAILS",                  DIAL_CENTER_X, 84,  11, pal->text_3, 255, true);
     dial_draw_text(fb, "Teardrop",                       DIAL_CENTER_X, 102, 20, pal->text_1, 255, true);
-    dial_draw_text(fb, "Massive Attack . Mezzanine",     DIAL_CENTER_X, 126, 12, pal->text_2, 255, true);
+    dial_draw_text(fb, "Massive Attack · Mezzanine",     DIAL_CENTER_X, 126, 12, pal->text_2, 255, true);
 
     int w1 = dial_measure_text("FLAC 24/96", 10, 0) + 14;
     int w2 = dial_measure_text("2,842 kbps", 10, 0) + 14;
@@ -472,7 +472,7 @@ static void render_lib_01_preview(dial_fb_t *fb, const dial_palette_t *pal, uint
     const dial_rim_row_t rows[5] = {
         { .icon_name = "heart",    .title = "Favorites", .value_text = "64" },
         { .icon_name = "playlist", .title = "Playlists", .value_text = "12" },
-        { .icon_name = "artist",   .title = "Artists",   .sub = "118 artists . A-Z", .has_chev = true },
+        { .icon_name = "artist",   .title = "Artists",   .sub = "118 artists · A–Z", .has_chev = true },
         { .icon_name = "album",    .title = "Albums",    .value_text = "214" },
         { .icon_name = "genre",    .title = "Genres",    .value_text = "24" }
     };

@@ -1,5 +1,6 @@
 #include "dial_draw.h"
 #include "dial_icons.h"
+#include "dial_assets.h"
 #include <ctype.h>
 #include <math.h>
 #include <stdio.h>
@@ -385,174 +386,73 @@ void dial_draw_round_rect(dial_fb_t *fb,
     }
 }
 
-/* ── Compact Scalable Vector/Bitmap Glyph Renderer (ASCII 32..126 + Nordic) ── */
-static const uint8_t GLYPH_5X7[95][7] = {
-    /* 32 ' ' */ {0x00,0x00,0x00,0x00,0x00,0x00,0x00},
-    /* 33 '!' */ {0x04,0x04,0x04,0x04,0x00,0x04,0x00},
-    /* 34 '"' */ {0x0A,0x0A,0x00,0x00,0x00,0x00,0x00},
-    /* 35 '#' */ {0x0A,0x1F,0x0A,0x0A,0x1F,0x0A,0x00},
-    /* 36 '$' */ {0x04,0x0F,0x14,0x0E,0x05,0x1E,0x04},
-    /* 37 '%' */ {0x19,0x19,0x02,0x04,0x08,0x13,0x13},
-    /* 38 '&' */ {0x0C,0x12,0x14,0x08,0x15,0x12,0x0D},
-    /* 39 ''' */ {0x04,0x04,0x00,0x00,0x00,0x00,0x00},
-    /* 40 '(' */ {0x02,0x04,0x08,0x08,0x08,0x04,0x02},
-    /* 41 ')' */ {0x08,0x04,0x02,0x02,0x02,0x04,0x08},
-    /* 42 '*' */ {0x00,0x04,0x15,0x0E,0x15,0x04,0x00},
-    /* 43 '+' */ {0x00,0x04,0x04,0x1F,0x04,0x04,0x00},
-    /* 44 ',' */ {0x00,0x00,0x00,0x00,0x04,0x04,0x08},
-    /* 45 '-' */ {0x00,0x00,0x00,0x1F,0x00,0x00,0x00},
-    /* 46 '.' */ {0x00,0x00,0x00,0x00,0x00,0x0C,0x0C},
-    /* 47 '/' */ {0x01,0x02,0x04,0x04,0x08,0x10,0x00},
-    /* 48 '0' */ {0x0E,0x11,0x13,0x15,0x19,0x11,0x0E},
-    /* 49 '1' */ {0x04,0x0C,0x04,0x04,0x04,0x04,0x0E},
-    /* 50 '2' */ {0x0E,0x11,0x01,0x06,0x08,0x10,0x1F},
-    /* 51 '3' */ {0x0E,0x11,0x01,0x06,0x01,0x11,0x0E},
-    /* 52 '4' */ {0x02,0x06,0x0A,0x12,0x1F,0x02,0x02},
-    /* 53 '5' */ {0x1F,0x10,0x1E,0x01,0x01,0x11,0x0E},
-    /* 54 '6' */ {0x06,0x08,0x10,0x1E,0x11,0x11,0x0E},
-    /* 55 '7' */ {0x1F,0x01,0x02,0x04,0x08,0x08,0x08},
-    /* 56 '8' */ {0x0E,0x11,0x11,0x0E,0x11,0x11,0x0E},
-    /* 57 '9' */ {0x0E,0x11,0x11,0x0F,0x01,0x02,0x0C},
-    /* 58 ':' */ {0x00,0x0C,0x0C,0x00,0x0C,0x0C,0x00},
-    /* 59 ';' */ {0x00,0x04,0x00,0x00,0x04,0x04,0x08},
-    /* 60 '<' */ {0x02,0x04,0x08,0x10,0x08,0x04,0x02},
-    /* 61 '=' */ {0x00,0x00,0x1F,0x00,0x1F,0x00,0x00},
-    /* 62 '>' */ {0x08,0x04,0x02,0x01,0x02,0x04,0x08},
-    /* 63 '?' */ {0x0E,0x11,0x01,0x06,0x04,0x00,0x04},
-    /* 64 '@' */ {0x0E,0x11,0x17,0x15,0x17,0x10,0x0E},
-    /* 65 'A' */ {0x0E,0x11,0x11,0x1F,0x11,0x11,0x11},
-    /* 66 'B' */ {0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E},
-    /* 67 'C' */ {0x0E,0x11,0x10,0x10,0x10,0x11,0x0E},
-    /* 68 'D' */ {0x1C,0x12,0x11,0x11,0x11,0x12,0x1C},
-    /* 69 'E' */ {0x1F,0x10,0x10,0x1E,0x10,0x10,0x1F},
-    /* 70 'F' */ {0x1F,0x10,0x10,0x1E,0x10,0x10,0x10},
-    /* 71 'G' */ {0x0E,0x11,0x10,0x17,0x11,0x11,0x0F},
-    /* 72 'H' */ {0x11,0x11,0x11,0x1F,0x11,0x11,0x11},
-    /* 73 'I' */ {0x0E,0x04,0x04,0x04,0x04,0x04,0x0E},
-    /* 74 'J' */ {0x07,0x02,0x02,0x02,0x02,0x12,0x0C},
-    /* 75 'K' */ {0x11,0x12,0x14,0x18,0x14,0x12,0x11},
-    /* 76 'L' */ {0x10,0x10,0x10,0x10,0x10,0x10,0x1F},
-    /* 77 'M' */ {0x11,0x1B,0x15,0x15,0x11,0x11,0x11},
-    /* 78 'N' */ {0x11,0x19,0x15,0x13,0x11,0x11,0x11},
-    /* 79 'O' */ {0x0E,0x11,0x11,0x11,0x11,0x11,0x0E},
-    /* 80 'P' */ {0x1E,0x11,0x11,0x1E,0x10,0x10,0x10},
-    /* 81 'Q' */ {0x0E,0x11,0x11,0x11,0x15,0x12,0x0D},
-    /* 82 'R' */ {0x1E,0x11,0x11,0x1E,0x14,0x12,0x11},
-    /* 83 'S' */ {0x0E,0x11,0x10,0x0E,0x01,0x11,0x0E},
-    /* 84 'T' */ {0x1F,0x04,0x04,0x04,0x04,0x04,0x04},
-    /* 85 'U' */ {0x11,0x11,0x11,0x11,0x11,0x11,0x0E},
-    /* 86 'V' */ {0x11,0x11,0x11,0x11,0x11,0x0A,0x04},
-    /* 87 'W' */ {0x11,0x11,0x11,0x15,0x15,0x1B,0x11},
-    /* 88 'X' */ {0x11,0x11,0x0A,0x04,0x0A,0x11,0x11},
-    /* 89 'Y' */ {0x11,0x11,0x0A,0x04,0x04,0x04,0x04},
-    /* 90 'Z' */ {0x1F,0x01,0x02,0x04,0x08,0x10,0x1F},
-    /* 91 '[' */ {0x0E,0x08,0x08,0x08,0x08,0x08,0x0E},
-    /* 92 '\' */ {0x10,0x08,0x04,0x04,0x02,0x01,0x00},
-    /* 93 ']' */ {0x0E,0x02,0x02,0x02,0x02,0x02,0x0E},
-    /* 94 '^' */ {0x04,0x0A,0x11,0x00,0x00,0x00,0x00},
-    /* 95 '_' */ {0x00,0x00,0x00,0x00,0x00,0x00,0x1F},
-    /* 96 '`' */ {0x08,0x04,0x00,0x00,0x00,0x00,0x00},
-    /* 97 'a' */ {0x00,0x00,0x0E,0x01,0x0F,0x11,0x0F},
-    /* 98 'b' */ {0x10,0x10,0x1E,0x11,0x11,0x11,0x1E},
-    /* 99 'c' */ {0x00,0x00,0x0E,0x11,0x10,0x11,0x0E},
-    /*100 'd' */ {0x01,0x01,0x0F,0x11,0x11,0x11,0x0F},
-    /*101 'e' */ {0x00,0x00,0x0E,0x11,0x1F,0x10,0x0E},
-    /*102 'f' */ {0x06,0x08,0x1E,0x08,0x08,0x08,0x08},
-    /*103 'g' */ {0x00,0x00,0x0F,0x11,0x0F,0x01,0x0E},
-    /*104 'h' */ {0x10,0x10,0x1E,0x11,0x11,0x11,0x11},
-    /*105 'i' */ {0x04,0x00,0x0C,0x04,0x04,0x04,0x0E},
-    /*106 'j' */ {0x02,0x00,0x06,0x02,0x02,0x12,0x0C},
-    /*107 'k' */ {0x10,0x10,0x12,0x14,0x18,0x14,0x12},
-    /*108 'l' */ {0x0C,0x04,0x04,0x04,0x04,0x04,0x0E},
-    /*109 'm' */ {0x00,0x00,0x1A,0x15,0x15,0x11,0x11},
-    /*110 'n' */ {0x00,0x00,0x1E,0x11,0x11,0x11,0x11},
-    /*111 'o' */ {0x00,0x00,0x0E,0x11,0x11,0x11,0x0E},
-    /*112 'p' */ {0x00,0x00,0x1E,0x11,0x1E,0x10,0x10},
-    /*113 'q' */ {0x00,0x00,0x0F,0x11,0x0F,0x01,0x01},
-    /*114 'r' */ {0x00,0x00,0x16,0x19,0x10,0x10,0x10},
-    /*115 's' */ {0x00,0x00,0x0F,0x10,0x0E,0x01,0x1E},
-    /*116 't' */ {0x08,0x08,0x1E,0x08,0x08,0x09,0x06},
-    /*117 'u' */ {0x00,0x00,0x11,0x11,0x11,0x11,0x0F},
-    /*118 'v' */ {0x00,0x00,0x11,0x11,0x11,0x0A,0x04},
-    /*119 'w' */ {0x00,0x00,0x11,0x11,0x15,0x15,0x0A},
-    /*120 'x' */ {0x00,0x00,0x11,0x0A,0x04,0x0A,0x11},
-    /*121 'y' */ {0x00,0x00,0x11,0x11,0x0F,0x01,0x0E},
-    /*122 'z' */ {0x00,0x00,0x1F,0x02,0x04,0x08,0x1F},
-    /*123 '{' */ {0x02,0x04,0x04,0x08,0x04,0x04,0x02},
-    /*124 '|' */ {0x04,0x04,0x04,0x04,0x04,0x04,0x04},
-    /*125 '}' */ {0x08,0x04,0x04,0x02,0x04,0x04,0x08},
-    /*126 '~' */ {0x00,0x00,0x08,0x15,0x02,0x00,0x00}
-};
+/* ── CoreText 8-Bit (256-Level Alpha) Proportional Font Renderer (ASCII + UTF-8 Nordic) ── */
+static const dial_baked_font_t *select_baked_font(int font_px) {
+    if (font_px <= 10) return &g_dial_fonts[DIAL_FONT_FACE_SANS_10];
+    if (font_px == 11) return &g_dial_fonts[DIAL_FONT_FACE_SANS_11];
+    if (font_px == 12) return &g_dial_fonts[DIAL_FONT_FACE_SANS_12];
+    if (font_px == 13) return &g_dial_fonts[DIAL_FONT_FACE_SANS_13];
+    if (font_px <= 15) return &g_dial_fonts[DIAL_FONT_FACE_SANS_15];
+    if (font_px <= 17) return &g_dial_fonts[DIAL_FONT_FACE_SANS_16];
+    if (font_px <= 19) return &g_dial_fonts[DIAL_FONT_FACE_SANS_18];
+    if (font_px <= 21) return &g_dial_fonts[DIAL_FONT_FACE_SANS_20];
+    if (font_px <= 25) return &g_dial_fonts[DIAL_FONT_FACE_SANS_22];
+    if (font_px <= 36) return &g_dial_fonts[DIAL_FONT_FACE_SANS_28];
+    if (font_px <= 47) return &g_dial_fonts[DIAL_FONT_FACE_SANS_44];
+    return &g_dial_fonts[DIAL_FONT_FACE_SANS_52];
+}
 
-static int count_ascii_chars(const char *text) {
-    if (!text) return 0;
-    int n = 0;
-    const unsigned char *p = (const unsigned char *)text;
-    while (*p) {
-        if (*p < 0x80) {
-            n++;
-            p++;
-        } else if ((*p & 0xE0) == 0xC0 && p[1]) {
-            n++;
-            p += 2;
-        } else if ((*p & 0xF0) == 0xE0 && p[1] && p[2]) {
-            n++;
-            p += 3;
-        } else {
-            p++;
+static uint32_t next_utf8_codepoint(const unsigned char **pp) {
+    const unsigned char *p = *pp;
+    if (!p || !*p) return 0;
+    unsigned char c = *p;
+    if (c < 0x80u) {
+        *pp = p + 1;
+        return (uint32_t)c;
+    } else if ((c & 0xE0u) == 0xC0u && p[1]) {
+        uint32_t cp = (((uint32_t)(c & 0x1Fu)) << 6) | ((uint32_t)(p[1] & 0x3Fu));
+        *pp = p + 2;
+        return cp;
+    } else if ((c & 0xF0u) == 0xE0u && p[1] && p[2]) {
+        uint32_t cp = (((uint32_t)(c & 0x0Fu)) << 12) |
+                      (((uint32_t)(p[1] & 0x3Fu)) << 6) |
+                      ((uint32_t)(p[2] & 0x3Fu));
+        *pp = p + 3;
+        if (cp == 0x2212u) cp = 0x2013u; /* Unicode minus -> en-dash */
+        return cp;
+    }
+    *pp = p + 1;
+    return (uint32_t)'.';
+}
+
+static const dial_baked_glyph_t *lookup_glyph(const dial_baked_font_t *font, uint32_t cp) {
+    if (cp >= 32u && cp <= 126u) {
+        return &font->glyphs[cp - 32u];
+    }
+    for (size_t i = 95; i < DIAL_ASSET_CHAR_COUNT; ++i) {
+        if (font->glyphs[i].codepoint == cp) {
+            return &font->glyphs[i];
         }
     }
-    return n;
+    return &font->glyphs['.' - 32];
 }
 
 int dial_measure_text(const char *text, int font_px, int letter_spacing_px) {
-    int n = count_ascii_chars(text);
-    if (n <= 0) return 0;
-    float scale = (float)font_px / 7.0f;
-    int adv = (int)roundf(5.5f * scale) + letter_spacing_px;
-    return n * adv - letter_spacing_px;
-}
-
-static void draw_glyph_clipped(dial_fb_t *fb,
-                               unsigned char ch,
-                               float gx,
-                               float gy,
-                               float scale,
-                               uint32_t rgb,
-                               uint8_t alpha,
-                               int clip_min_x,
-                               int clip_max_x) {
-    if (ch < 32 || ch > 126) ch = '.';
-    const uint8_t *rows = GLYPH_5X7[ch - 32];
-    const float dot_r = fmaxf(0.65f, scale * 0.58f);
-
-    for (int r = 0; r < 7; ++r) {
-        uint8_t bits = rows[r];
-        if (!bits) continue;
-        float cy = gy + ((float)r + 0.5f) * scale;
-        for (int c = 0; c < 5; ++c) {
-            if (bits & (1u << (4 - c))) {
-                float cx = gx + ((float)c + 0.5f) * scale;
-                int ix0 = (int)floorf(cx - dot_r);
-                int ix1 = (int)ceilf(cx + dot_r);
-                int iy0 = (int)floorf(cy - dot_r);
-                int iy1 = (int)ceilf(cy + dot_r);
-                for (int py = iy0; py <= iy1; ++py) {
-                    for (int px = ix0; px <= ix1; ++px) {
-                        if (px < clip_min_x || px > clip_max_x) continue;
-                        float dx = ((float)px + 0.5f) - cx;
-                        float dy = ((float)py + 0.5f) - cy;
-                        float d  = sqrtf(dx * dx + dy * dy);
-                        float cov = (dot_r + 0.35f) - d;
-                        if (cov > 0.0f) {
-                            if (cov > 1.0f) cov = 1.0f;
-                            dial_draw_pixel_aa(fb, px, py, rgb, (uint8_t)((float)alpha * cov + 0.5f));
-                        }
-                    }
-                }
-            }
-        }
+    if (!text || !*text || font_px <= 0) return 0;
+    const dial_baked_font_t *font = select_baked_font(font_px);
+    int extra_track = letter_spacing_px + (font_px == 11 ? 1 : 0);
+    int total_w = 0;
+    int count = 0;
+    const unsigned char *p = (const unsigned char *)text;
+    while (*p) {
+        uint32_t cp = next_utf8_codepoint(&p);
+        if (!cp) break;
+        const dial_baked_glyph_t *g = lookup_glyph(font, cp);
+        total_w += (int)g->advance_x + extra_track;
+        count++;
     }
+    if (count > 0) total_w -= extra_track;
+    return total_w;
 }
 
 static void draw_text_clipped(dial_fb_t *fb,
@@ -564,35 +464,39 @@ static void draw_text_clipped(dial_fb_t *fb,
                               uint8_t alpha,
                               int clip_min_x,
                               int clip_max_x) {
-    if (!fb || !text || font_px <= 0 || alpha == 0) return;
-    const float scale = (float)font_px / 7.0f;
-    const float adv   = 5.5f * scale;
-    float cur_x = (float)x;
+    if (!fb || !text || !*text || font_px <= 0 || alpha == 0) return;
+    const dial_baked_font_t *font = select_baked_font(font_px);
+    int extra_track = (font_px == 11 ? 1 : 0);
+    int baseline_y = y + (int)roundf(font->size_px * 0.80f);
+    int pen_x = x;
 
     const unsigned char *p = (const unsigned char *)text;
     while (*p) {
-        unsigned char ch = *p;
-        if (ch < 0x80) {
-            p++;
-        } else if ((ch & 0xE0) == 0xC0 && p[1]) {
-            /* Map UTF-8 middle dot '·' (0xC2 0xB7) or Nordic 'ä'/'ö'/'å' */
-            if (ch == 0xC2 && p[1] == 0xB7) ch = '.';
-            else if (ch == 0xC3 && (p[1] == 0xA4 || p[1] == 0xA5)) ch = 'a';
-            else if (ch == 0xC3 && p[1] == 0xB6) ch = 'o';
-            else ch = '.';
-            p += 2;
-        } else if ((ch & 0xF0) == 0xE0 && p[1] && p[2]) {
-            if (ch == 0xE2 && p[1] == 0x80 && (p[2] == 0x9C || p[2] == 0x9D)) ch = '"';
-            else if (ch == 0xE2 && p[1] == 0x88 && p[2] == 0x92) ch = '-';
-            else ch = '*';
-            p += 3;
-        } else {
-            p++;
-            continue;
-        }
+        uint32_t cp = next_utf8_codepoint(&p);
+        if (!cp) break;
+        const dial_baked_glyph_t *g = lookup_glyph(font, cp);
 
-        draw_glyph_clipped(fb, ch, cur_x, (float)y, scale, rgb, alpha, clip_min_x, clip_max_x);
-        cur_x += adv;
+        if (g->width > 0 && g->height > 0) {
+            int gx0 = pen_x + (int)g->bearing_x;
+            int gy0 = baseline_y - (int)g->bearing_y;
+            const uint8_t *bmp = &g_dial_font_atlas[g->bitmap_offset];
+
+            for (int ry = 0; ry < (int)g->height; ++ry) {
+                int py = gy0 + ry;
+                if (py < 0 || py >= (int)fb->height) continue;
+                const uint8_t *row = &bmp[ry * (int)g->width];
+                for (int rx = 0; rx < (int)g->width; ++rx) {
+                    int px = gx0 + rx;
+                    if (px < clip_min_x || px > clip_max_x) continue;
+                    uint8_t cov = row[rx];
+                    if (cov > 0) {
+                        uint8_t a = (uint8_t)(((uint32_t)alpha * (uint32_t)cov + 127u) / 255u);
+                        dial_draw_pixel_aa(fb, px, py, rgb, a);
+                    }
+                }
+            }
+        }
+        pen_x += (int)g->advance_x + extra_track;
     }
 }
 
@@ -777,34 +681,43 @@ void dial_draw_hint(dial_fb_t *fb,
 
 void dial_draw_horizon(dial_fb_t *fb, const dial_palette_t *pal) {
     if (!fb || !pal) return;
-    /* Stylized Nordic mountain ridge silhouette at bottom of circular viewport */
+    /* Stylized Nordic mountain ridge silhouette with subpixel AA edges */
     const int peaks1_x[8] = {0, 54, 92, 140, 196, 236, 300, 360};
     const int peaks1_y[8] = {300, 264, 288, 248, 292, 270, 306, 280};
     const int peaks2_x[6] = {0, 70, 130, 210, 290, 360};
     const int peaks2_y[6] = {326, 300, 318, 294, 322, 308};
 
     for (int x = 0; x < DIAL_SCREEN_WIDTH; ++x) {
-        /* Back ridge (surface_1) */
-        int y1 = 360;
+        float y1 = 360.0f;
         for (int s = 0; s < 7; ++s) {
             if (x >= peaks1_x[s] && x <= peaks1_x[s + 1]) {
                 float t = (float)(x - peaks1_x[s]) / (float)(peaks1_x[s + 1] - peaks1_x[s]);
-                y1 = (int)((float)peaks1_y[s] + t * (float)(peaks1_y[s + 1] - peaks1_y[s]));
+                y1 = (float)peaks1_y[s] + t * (float)(peaks1_y[s + 1] - peaks1_y[s]);
                 break;
             }
         }
-        /* Front ridge (surface_2) */
-        int y2 = 360;
+        float y2 = 360.0f;
         for (int s = 0; s < 5; ++s) {
             if (x >= peaks2_x[s] && x <= peaks2_x[s + 1]) {
                 float t = (float)(x - peaks2_x[s]) / (float)(peaks2_x[s + 1] - peaks2_x[s]);
-                y2 = (int)((float)peaks2_y[s] + t * (float)(peaks2_y[s + 1] - peaks2_y[s]));
+                y2 = (float)peaks2_y[s] + t * (float)(peaks2_y[s + 1] - peaks2_y[s]);
                 break;
             }
         }
-        for (int y = y1; y < DIAL_SCREEN_HEIGHT; ++y) {
-            uint32_t col = (y >= y2) ? pal->surface_2 : pal->surface_1;
-            dial_draw_pixel_aa(fb, x, y, col, 255);
+        int start_y = (int)floorf(y1) - 1;
+        if (start_y < 0) start_y = 0;
+        for (int y = start_y; y < DIAL_SCREEN_HEIGHT; ++y) {
+            float fy = (float)y + 0.5f;
+            float cov1 = fy - y1 + 0.5f;
+            if (cov1 > 0.0f) {
+                if (cov1 > 1.0f) cov1 = 1.0f;
+                dial_draw_pixel_aa(fb, x, y, pal->surface_1, (uint8_t)(cov1 * 255.0f + 0.5f));
+            }
+            float cov2 = fy - y2 + 0.5f;
+            if (cov2 > 0.0f) {
+                if (cov2 > 1.0f) cov2 = 1.0f;
+                dial_draw_pixel_aa(fb, x, y, pal->surface_2, (uint8_t)(cov2 * 255.0f + 0.5f));
+            }
         }
     }
 }
@@ -905,6 +818,38 @@ void dial_draw_rim_list(dial_fb_t *fb,
     }
 }
 
+static uint32_t unpack_rgb565_to_888(uint16_t p) {
+    uint32_t r = ((p >> 11) & 0x1Fu) * 255u / 31u;
+    uint32_t g = ((p >> 5)  & 0x3Fu) * 255u / 63u;
+    uint32_t b = ( p        & 0x1Fu) * 255u / 31u;
+    return (r << 16) | (g << 8) | b;
+}
+
+static uint32_t sample_cover_bilinear(const uint16_t *tex, float u01, float v01) {
+    if (u01 < 0.0f) u01 = 0.0f;
+    if (u01 > 1.0f) u01 = 1.0f;
+    if (v01 < 0.0f) v01 = 0.0f;
+    if (v01 > 1.0f) v01 = 1.0f;
+
+    float fx = u01 * (float)(DIAL_VINYL_TEX_DIM - 1);
+    float fy = v01 * (float)(DIAL_VINYL_TEX_DIM - 1);
+    int x0 = (int)fx;
+    int y0 = (int)fy;
+    int x1 = (x0 + 1 < DIAL_VINYL_TEX_DIM) ? (x0 + 1) : x0;
+    int y1 = (y0 + 1 < DIAL_VINYL_TEX_DIM) ? (y0 + 1) : y0;
+    uint8_t tx = (uint8_t)((fx - (float)x0) * 255.0f);
+    uint8_t ty = (uint8_t)((fy - (float)y0) * 255.0f);
+
+    uint32_t c00 = unpack_rgb565_to_888(tex[y0 * DIAL_VINYL_TEX_DIM + x0]);
+    uint32_t c10 = unpack_rgb565_to_888(tex[y0 * DIAL_VINYL_TEX_DIM + x1]);
+    uint32_t c01 = unpack_rgb565_to_888(tex[y1 * DIAL_VINYL_TEX_DIM + x0]);
+    uint32_t c11 = unpack_rgb565_to_888(tex[y1 * DIAL_VINYL_TEX_DIM + x1]);
+
+    uint32_t top = dial_color_lerp(c00, c10, tx);
+    uint32_t bot = dial_color_lerp(c01, c11, tx);
+    return dial_color_lerp(top, bot, ty);
+}
+
 void dial_draw_art(dial_fb_t *fb,
                    const dial_palette_t *pal,
                    dial_art_kind_t kind,
@@ -918,6 +863,7 @@ void dial_draw_art(dial_fb_t *fb,
     const float spin_rad = spin_deg * ((float)M_PI / 180.0f);
     const float cos_s = cosf(spin_rad);
     const float sin_s = sinf(spin_rad);
+    const uint16_t *tex = g_dial_vinyl_covers[(int)kind % DIAL_VINYL_TEX_COUNT];
 
     int min_x = (int)floorf((float)cx - rad - 1.0f);
     int min_y = (int)floorf((float)cy - rad - 1.0f);
@@ -935,73 +881,29 @@ void dial_draw_art(dial_fb_t *fb,
             const float r  = sqrtf(dx * dx + dy * dy);
             if (r > rad + 0.5f) continue;
 
-            /* Rotate normalized UV into [0, 100] x [0, 100] artwork space */
             const float rx = (dx * cos_s + dy * sin_s) / rad;
             const float ry = (-dx * sin_s + dy * cos_s) / rad;
-            const float u  = (rx + 1.0f) * 50.0f;
-            const float v  = (ry + 1.0f) * 50.0f;
+            const float u01 = (rx + 1.0f) * 0.5f;
+            const float v01 = (ry + 1.0f) * 0.5f;
 
-            uint32_t col = 0x20313Au;
-            switch (kind) {
-                case DIAL_ART_FJORD: {
-                    col = 0x20313Au;
-                    float sun_d = hypotf(u - 68.0f, v - 34.0f);
-                    if (sun_d < 11.0f) col = 0xE2A66Au;
-                    float m1 = 50.0f - 12.0f * sinf(u * 0.11f) + 6.0f * cosf(u * 0.23f);
-                    float m2 = 60.0f - 8.0f  * cosf(u * 0.14f);
-                    if (v > m1) col = 0x3E5A68u;
-                    if (v > m2) col = 0x2C4450u;
-                    if (v > 74.0f) col = 0x18262Du;
-                    break;
-                }
-                case DIAL_ART_RINGS: {
-                    col = 0xD8CFBDu;
-                    float ring_r = hypotf((u - 50.0f) * 0.95f, v - 50.0f);
-                    if (fmodf(ring_r, 6.5f) < 1.6f) col = 0x7A6A4Eu;
-                    break;
-                }
-                case DIAL_ART_AURORA: {
-                    col = 0x121A1Fu;
-                    float wave = 48.0f + 16.0f * sinf(u * 0.08f);
-                    if (fabsf(v - wave) < 9.0f) col = 0x5A8468u;
-                    else if (fabsf(v - (wave - 10.0f)) < 6.0f) col = 0x7E6B8Fu;
-                    if (v > 80.0f) col = 0x0B1013u;
-                    break;
-                }
-                case DIAL_ART_MOSS: {
-                    col = 0x3D5443u;
-                    float cr = hypotf(u - 50.0f, v - 50.0f);
-                    if (cr < 16.0f) col = 0xECEEE8u;
-                    else if (((int)(u * 0.25f) + (int)(v * 0.25f)) % 2 == 0) col = 0x6E9479u;
-                    break;
-                }
-                case DIAL_ART_BERRY: {
-                    col = 0xE8DCC6u;
-                    float cr = hypotf(u - 50.0f, v - 50.0f);
-                    if (cr < 8.0f) col = 0xB8733Au;
-                    else if (cr < 28.0f) col = 0xE2A66Au;
-                    break;
-                }
-                case DIAL_ART_SNOW: {
-                    col = 0xECEEE8u;
-                    float m = 54.0f - 14.0f * fabsf(sinf(u * 0.07f));
-                    if (v > m) col = 0xA2ABA5u;
-                    if (v > 78.0f) col = 0x6F7974u;
-                    break;
-                }
-            }
+            uint32_t col = sample_cover_bilinear(tex, u01, v01);
 
             if (vinyl_grooves) {
-                /* Subtle vinyl groove rings + radial edge vignette (Locked Rule #1) */
+                /* Smooth anti-aliased vinyl groove rings + radial edge vignette (Locked Rule #1) */
                 float norm_r = (r / rad) * 50.0f;
                 const float gr[6] = {47.0f, 43.0f, 39.5f, 36.0f, 33.0f, 30.0f};
                 for (int g = 0; g < 6; ++g) {
-                    if (fabsf(norm_r - gr[g]) < 0.45f) {
-                        col = dial_color_lerp(col, 0x000000u, 56);
+                    float gd = fabsf(norm_r - gr[g]);
+                    if (gd < 0.65f) {
+                        uint8_t ga = (uint8_t)((1.0f - gd / 0.65f) * 60.0f);
+                        col = dial_color_lerp(col, 0x000000u, ga);
                     }
                 }
-                if (norm_r > 36.0f) {
-                    uint8_t vig = (uint8_t)(((norm_r - 36.0f) / 14.0f) * 185.0f);
+                if (norm_r < 11.0f) {
+                    uint8_t center_dim = (uint8_t)((1.0f - norm_r / 11.0f) * 85.0f);
+                    col = dial_color_lerp(col, pal->bg, center_dim);
+                } else if (norm_r > 36.0f) {
+                    uint8_t vig = (uint8_t)(((norm_r - 36.0f) / 14.0f) * 194.0f);
                     col = dial_color_lerp(col, pal->bg, vig);
                 }
             }
