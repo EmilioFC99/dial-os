@@ -1,0 +1,46 @@
+name: Deploy Fjäll UI Showcase to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare static showcase bundle
+        run: |
+          mkdir -p _site/assets/nordic
+          cp -r assets/nordic/* _site/assets/nordic/
+          cp assets/nordic/fjall-design-system.html _site/index.html
+          mkdir -p _site/moodboard
+          cp -r assets/nordic/moodboard/* _site/moodboard/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "_site"
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
