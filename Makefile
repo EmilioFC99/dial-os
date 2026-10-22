@@ -19,11 +19,13 @@ CORE_SRCS := src/hal/hal_sdl2.c \
              src/core/dial_polar.c \
              src/core/dial_gestures.c \
              src/ui/dial_draw.c \
-             src/ui/dial_icons.c
+             src/ui/dial_icons.c \
+             src/screens/dial_screens_core_np.c
 
 SIM_BIN   := $(BUILD_DIR)/dialos-sim
 TEST_POL  := $(BUILD_DIR)/test_polar_gestures
 TEST_DRW  := $(BUILD_DIR)/test_draw_primitives
+TEST_V030 := $(BUILD_DIR)/test_screens_v030
 
 .PHONY: all sim test clean
 
@@ -43,12 +45,26 @@ $(TEST_POL): $(CORE_SRCS) tests/test_polar_gestures.c | $(BUILD_DIR)
 $(TEST_DRW): $(CORE_SRCS) tests/test_draw_primitives.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_draw_primitives.c -o $(TEST_DRW) $(LIBS)
 
-test: $(TEST_POL) $(TEST_DRW) $(SIM_BIN)
+$(TEST_V030): $(CORE_SRCS) tests/test_screens_v030.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_screens_v030.c -o $(TEST_V030) $(LIBS)
+
+test: $(TEST_POL) $(TEST_DRW) $(TEST_V030) $(SIM_BIN)
 	./$(TEST_POL)
 	./$(TEST_DRW)
-	./$(SIM_BIN) --headless --screen NP-01 --mode night --out /tmp/dialos_m1_np01_night.png
-	./$(SIM_BIN) --headless --screen LIB-01 --mode day --out /tmp/dialos_m1_lib01_day.png
-	./$(SIM_BIN) --headless --screen TEST-ICONS --mode night --out /tmp/dialos_m1_icons.png
+	./$(TEST_V030)
+	./$(SIM_BIN) --headless --screen SYS-00 --mode night --out /tmp/dialos_v030_sys00.png
+	./$(SIM_BIN) --headless --screen LCK-01 --mode night --out /tmp/dialos_v030_lck01.png
+	./$(SIM_BIN) --headless --screen LCK-02 --mode night --out /tmp/dialos_v030_lck02.png
+	./$(SIM_BIN) --headless --screen HOM-01 --mode night --out /tmp/dialos_v030_hom01.png
+	./$(SIM_BIN) --headless --screen HOM-02 --mode day   --out /tmp/dialos_v030_hom02_day.png
+	./$(SIM_BIN) --headless --screen HOM-03 --mode night --out /tmp/dialos_v030_hom03.png
+	./$(SIM_BIN) --headless --screen CC-01  --mode night --out /tmp/dialos_v030_cc01.png
+	./$(SIM_BIN) --headless --screen CC-02  --mode night --out /tmp/dialos_v030_cc02.png
+	./$(SIM_BIN) --headless --screen NP-01  --mode night --out /tmp/dialos_v030_np01.png
+	./$(SIM_BIN) --headless --screen NP-02  --mode night --out /tmp/dialos_v030_np02.png
+	./$(SIM_BIN) --headless --screen NP-03  --mode night --out /tmp/dialos_v030_np03.png
+	./$(SIM_BIN) --headless --screen NP-04  --mode night --out /tmp/dialos_v030_np04.png
+	./$(SIM_BIN) --headless --screen NP-05  --mode night --out /tmp/dialos_v030_np05.png
 
 clean:
 	rm -rf $(BUILD_DIR)
