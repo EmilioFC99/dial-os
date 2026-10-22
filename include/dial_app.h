@@ -31,9 +31,17 @@ typedef struct {
     bool               touch_locked;        /* Row 2 Col 2: opens CC-02 Touch Lock Shield */
     float              unlock_hold_progress;/* 0.0..1.0 ring fill during 600ms hold on CC-02 */
 
-    /* Navigation & List Focus */
+    /* Navigation, Library & Files State (HOM, LIB-01..04, FIL-01..04) */
     int                home_focus_idx;      /* 0..5 app pebble focus on HOM-01..03 */
     int                list_focus_idx;      /* 0..4 row focus on LIB-01 */
+    int                album_focus_idx;     /* 0..5 album cover focus on LIB-02 */
+    int                track_focus_idx;     /* 0..4 track row focus on LIB-03 */
+    int                playing_track_idx;   /* 0..4 active playing track on LIB-03 */
+    int                artist_focus_idx;    /* 0..4 artist row focus on LIB-04 */
+    char               artist_jump_letter;  /* 'A'..'Z' fast-spin letter bubble on LIB-04 */
+    int                file_focus_idx;      /* 0..4 file/folder row focus on FIL-01 */
+    float              delete_hold_progress;/* 0.0..1.0 ring/button fill during 600ms hold on FIL-03 */
+    bool               file_deleted;        /* Set true after 600ms hold on FIL-03 */
 
     /* Embedded Gesture Disambiguation FSM */
     dial_gesture_fsm_t fsm;

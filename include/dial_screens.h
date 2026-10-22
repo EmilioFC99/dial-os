@@ -33,4 +33,14 @@ bool dial_screen_render_by_id(dial_fb_t *fb,
                               dial_mode_t mode,
                               uint32_t tick_ms);
 
+/* Milestone 3 (v0.4.0) Library & Files Screen Renderers */
+void dial_render_lib_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_lib_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_lib_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_lib_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_fil_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_fil_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_fil_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+void dial_render_fil_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms);
+
 #endif /* DIAL_SCREENS_H */

@@ -462,25 +462,7 @@ static void render_np_05(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick
     dial_draw_circle_mask(fb);
 }
 
-/* ── Library Hub (LIB-01) & Diagnostic Screens ── */
-static void render_lib_01_preview(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
-    const dial_app_t *app = dial_app_get_state();
-    size_t focus = (size_t)(app->list_focus_idx >= 0 && app->list_focus_idx < 5 ? app->list_focus_idx : 2);
-
-    dial_draw_clear(fb, pal->bg);
-    dial_draw_header(fb, pal, "Library", "", 42);
-    const dial_rim_row_t rows[5] = {
-        { .icon_name = "heart",    .title = "Favorites", .value_text = "64" },
-        { .icon_name = "playlist", .title = "Playlists", .value_text = "12" },
-        { .icon_name = "artist",   .title = "Artists",   .sub = "118 artists · A–Z", .has_chev = true },
-        { .icon_name = "album",    .title = "Albums",    .value_text = "214" },
-        { .icon_name = "genre",    .title = "Genres",    .value_text = "24" }
-    };
-    dial_draw_rim_list(fb, pal, rows, 5, focus, 64, tick_ms);
-    dial_draw_scroll_rim(fb, pal, 0.05f + 0.15f * (float)focus, 0.30f);
-    dial_draw_circle_mask(fb);
-}
-
+/* ── Diagnostic Screens ── */
 static void render_test_icons(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     (void)tick_ms;
     dial_draw_clear(fb, pal->bg);
@@ -501,22 +483,29 @@ static void render_test_icons(dial_fb_t *fb, const dial_palette_t *pal, uint32_t
 
 /* ── Master Screen Registry ── */
 static const dial_screen_desc_t G_SCREENS[] = {
-    { "SYS-00", "core", "Boot",                             render_sys_00 },
-    { "LCK-01", "core", "Lock . idle",                      render_lck_01 },
-    { "LCK-02", "core", "Lock . playing (Full-Bleed)",      render_lck_02 },
-    { "HOM-01", "core", "Home . carousel",                  render_hom_01 },
-    { "HOM-02", "core", "Home . Library focused",           render_hom_02 },
-    { "HOM-03", "core", "App wheel",                        render_hom_03 },
-    { "CC-01",  "core", "Control Center . Icon Pucks",      render_cc_01  },
-    { "CC-02",  "core", "Touch lock shield",                render_cc_02  },
-    { "NP-01",  "np",   "Now Playing . Pure Vinyl",         render_np_01  },
-    { "NP-02",  "np",   "Quick actions . Bottom Arc",       render_np_02  },
-    { "NP-03",  "np",   "Synced lyrics",                    render_np_03  },
-    { "NP-04",  "np",   "Track details sheet",              render_np_04  },
-    { "NP-05",  "np",   "Volume HUD",                       render_np_05  },
-    { "LIB-01",          "lib",  "Library hub",             render_lib_01_preview },
-    { "TEST-PRIMITIVES", "test", "Test Primitives",         render_lib_01_preview },
-    { "TEST-ICONS",      "test", "Test 70 Icons",           render_test_icons     }
+    { "SYS-00", "core",  "Boot",                             render_sys_00      },
+    { "LCK-01", "core",  "Lock · idle",                      render_lck_01      },
+    { "LCK-02", "core",  "Lock · playing (Full-Bleed)",      render_lck_02      },
+    { "HOM-01", "core",  "Home · carousel",                  render_hom_01      },
+    { "HOM-02", "core",  "Home · Library focused",           render_hom_02      },
+    { "HOM-03", "core",  "App wheel",                        render_hom_03      },
+    { "CC-01",  "core",  "Control Center · Icon Pucks",      render_cc_01       },
+    { "CC-02",  "core",  "Touch lock shield",                render_cc_02       },
+    { "NP-01",  "np",    "Now Playing · Pure Vinyl",         render_np_01       },
+    { "NP-02",  "np",    "Quick actions · Bottom Arc",       render_np_02       },
+    { "NP-03",  "np",    "Synced lyrics",                    render_np_03       },
+    { "NP-04",  "np",    "Track details sheet",              render_np_04       },
+    { "NP-05",  "np",    "Volume HUD",                       render_np_05       },
+    { "LIB-01", "lib",   "Library hub",                      dial_render_lib_01 },
+    { "LIB-02", "lib",   "Albums · cover arc",               dial_render_lib_02 },
+    { "LIB-03", "lib",   "Track list",                       dial_render_lib_03 },
+    { "LIB-04", "lib",   "Artists · letter jump",            dial_render_lib_04 },
+    { "FIL-01", "files", "Browser",                          dial_render_fil_01 },
+    { "FIL-02", "files", "Action sheet (File & Folder)",     dial_render_fil_02 },
+    { "FIL-03", "files", "Delete confirm (600ms Hold)",      dial_render_fil_03 },
+    { "FIL-04", "files", "Empty state",                      dial_render_fil_04 },
+    { "TEST-PRIMITIVES", "test", "Test Primitives",          dial_render_lib_01 },
+    { "TEST-ICONS",      "test", "Test 70 Icons",            render_test_icons  }
 };
 
 const dial_screen_desc_t *dial_screen_get_all(size_t *out_count) {

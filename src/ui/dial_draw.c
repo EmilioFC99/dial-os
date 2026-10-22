@@ -614,6 +614,51 @@ void dial_draw_toggle(dial_fb_t *fb,
 void dial_draw_scrim(dial_fb_t *fb, const dial_palette_t *pal, uint8_t alpha) {
     if (!fb || !pal) return;
     if (alpha == 0) alpha = DIAL_SCRIM_ALPHA; /* 184 = 72% */
+
+    /* Static scratch buffer for 2-pass frosted-glass box blur (r = 6, zero malloc) */
+    static uint32_t s_blur_tmp[DIAL_SCREEN_WIDTH * DIAL_SCREEN_HEIGHT];
+    const int rad = 6;
+    const int div = rad * 2 + 1;
+
+    /* Pass 1: Horizontal blur */
+    for (int y = 0; y < DIAL_SCREEN_HEIGHT; ++y) {
+        const uint32_t *src = &fb->pixels[y * DIAL_SCREEN_WIDTH];
+        uint32_t *dst       = &s_blur_tmp[y * DIAL_SCREEN_WIDTH];
+        for (int x = 0; x < DIAL_SCREEN_WIDTH; ++x) {
+            uint32_t sr = 0, sg = 0, sb = 0;
+            for (int k = -rad; k <= rad; ++k) {
+                int sx = x + k;
+                if (sx < 0) sx = 0;
+                if (sx >= DIAL_SCREEN_WIDTH) sx = DIAL_SCREEN_WIDTH - 1;
+                uint32_t p = src[sx];
+                sr += (p >> 16) & 0xFFu;
+                sg += (p >> 8)  & 0xFFu;
+                sb +=  p        & 0xFFu;
+            }
+            dst[x] = 0xFF000000u | ((sr / (uint32_t)div) << 16) |
+                     ((sg / (uint32_t)div) << 8) | (sb / (uint32_t)div);
+        }
+    }
+
+    /* Pass 2: Vertical blur */
+    for (int y = 0; y < DIAL_SCREEN_HEIGHT; ++y) {
+        uint32_t *dst = &fb->pixels[y * DIAL_SCREEN_WIDTH];
+        for (int x = 0; x < DIAL_SCREEN_WIDTH; ++x) {
+            uint32_t sr = 0, sg = 0, sb = 0;
+            for (int k = -rad; k <= rad; ++k) {
+                int sy = y + k;
+                if (sy < 0) sy = 0;
+                if (sy >= DIAL_SCREEN_HEIGHT) sy = DIAL_SCREEN_HEIGHT - 1;
+                uint32_t p = s_blur_tmp[sy * DIAL_SCREEN_WIDTH + x];
+                sr += (p >> 16) & 0xFFu;
+                sg += (p >> 8)  & 0xFFu;
+                sb +=  p        & 0xFFu;
+            }
+            dst[x] = 0xFF000000u | ((sr / (uint32_t)div) << 16) |
+                     ((sg / (uint32_t)div) << 8) | (sb / (uint32_t)div);
+        }
+    }
+
     dial_draw_circle_fill(fb, (float)DIAL_CENTER_X, (float)DIAL_CENTER_Y,
                           (float)DIAL_RADIUS, pal->bg, alpha);
 }

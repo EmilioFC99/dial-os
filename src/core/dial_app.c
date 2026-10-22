@@ -64,6 +64,14 @@ void dial_app_init(dial_app_t *app, const char *initial_screen_id, dial_mode_t m
 
     app->home_focus_idx      = (strcmp(init_id, "HOM-02") == 0) ? 1 : 0;
     app->list_focus_idx      = 2; /* Focus row 2 ("Artists") on LIB-01 */
+    app->album_focus_idx     = 0; /* Focus album 0 ("Mezzanine" / fjord) on LIB-02 */
+    app->track_focus_idx     = 2; /* Focus track 2 ("03 Teardrop") on LIB-03 */
+    app->playing_track_idx   = 2; /* Playing track 2 ("03 Teardrop") on LIB-03 */
+    app->artist_focus_idx    = 2; /* Focus artist 2 ("Moderat") on LIB-04 */
+    app->artist_jump_letter  = 'M';
+    app->file_focus_idx      = 2; /* Focus item 2 ("03 Teardrop.flac") on FIL-01 */
+    app->delete_hold_progress= 0.0f;
+    app->file_deleted        = false;
 
     dial_gesture_fsm_init(&app->fsm, is_np01_screen(init_id), 330000u);
     app->fsm.current_seek_deg = app->seek_progress * 360.0f;
@@ -242,6 +250,8 @@ static void handle_disambiguated_event(dial_app_t *app,
                 dial_app_set_screen(app, "NP-01");
             } else if (app->home_focus_idx == 1) {
                 dial_app_set_screen(app, "LIB-01");
+            } else if (app->home_focus_idx == 2) {
+                dial_app_set_screen(app, "FIL-01");
             }
         }
         return;
@@ -254,8 +264,123 @@ static void handle_disambiguated_event(dial_app_t *app,
         } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
             dial_app_set_screen(app, "HOM-01");
         } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
-            dial_app_set_screen(app, "NP-01");
+            if (app->list_focus_idx == 2) {
+                dial_app_set_screen(app, "LIB-04");
+            } else if (app->list_focus_idx == 3) {
+                dial_app_set_screen(app, "LIB-02");
+            } else {
+                dial_app_set_screen(app, "LIB-03");
+            }
         }
+        return;
+    }
+
+    /* 10. Albums Cover Arc (LIB-02) — Locked Rule #6: Horizontal Swipe AND Right Rim Scroll */
+    if (strcmp(scr, "LIB-02") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            int next = (app->album_focus_idx + ev->detent_steps) % 6;
+            if (next < 0) next += 6;
+            app->album_focus_idx = next;
+        } else if (ev->type == DIAL_EVENT_SWIPE_LEFT) {
+            app->album_focus_idx = (app->album_focus_idx + 1) % 6;
+            dial_hal_haptic_tick(10);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            app->album_focus_idx = (app->album_focus_idx + 5) % 6;
+            dial_hal_haptic_tick(10);
+        } else if (ev->type == DIAL_EVENT_TAP && ev->r < 95.0f) {
+            dial_app_set_screen(app, "LIB-03");
+        }
+        return;
+    }
+
+    /* 11. Track List (LIB-03) */
+    if (strcmp(scr, "LIB-03") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->track_focus_idx = clamp_int(app->track_focus_idx + ev->detent_steps, 0, 4);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "LIB-02");
+        } else if (ev->type == DIAL_EVENT_TAP) {
+            if (ev->x < 46.0f && fabsf(ev->y - 180.0f) < 36.0f) {
+                dial_app_set_screen(app, "LIB-02");
+            } else if (ev->r < 140.0f) {
+                app->playing_track_idx = app->track_focus_idx;
+                app->is_playing = true;
+                dial_hal_send_ipc(DIAL_CMD_PLAY_PAUSE, "play");
+                dial_app_set_screen(app, "NP-01");
+            }
+        }
+        return;
+    }
+
+    /* 12. Artists Fast-Spin Letter Jump (LIB-04) */
+    if (strcmp(scr, "LIB-04") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->artist_focus_idx = clamp_int(app->artist_focus_idx + ev->detent_steps, 0, 4);
+            int ch = (int)app->artist_jump_letter + ev->detent_steps;
+            if (ch < 'A') ch = 'A';
+            if (ch > 'Z') ch = 'Z';
+            app->artist_jump_letter = (char)ch;
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "LIB-01");
+        } else if (ev->type == DIAL_EVENT_TAP && ev->r < 130.0f) {
+            dial_app_set_screen(app, "LIB-02");
+        }
+        return;
+    }
+
+    /* 13. Browse Files (FIL-01) — Locked Rule #7: Long-press opens FIL-02 Action Sheet */
+    if (strcmp(scr, "FIL-01") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->file_focus_idx = clamp_int(app->file_focus_idx + ev->detent_steps, 0, 4);
+        } else if (ev->type == DIAL_EVENT_HOLD_450MS) {
+            dial_app_set_screen(app, "FIL-02");
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "HOM-01");
+        } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
+            if (app->file_focus_idx == 0) {
+                dial_app_set_screen(app, "FIL-04");
+            } else if (app->file_focus_idx == 2 || app->file_focus_idx == 3) {
+                dial_app_set_screen(app, "NP-01");
+            }
+        }
+        return;
+    }
+
+    /* 14. File & Folder Action Sheet (FIL-02) */
+    if (strcmp(scr, "FIL-02") == 0) {
+        if (ev->type == DIAL_EVENT_TAP) {
+            /* 3 action pucks: Edit tags (cx=106), Move (cx=180), Delete (cx=254) at cy=246 */
+            if (hypotf(ev->x - 254.0f, ev->y - 246.0f) <= 32.0f) {
+                app->delete_hold_progress = 0.0f;
+                app->file_deleted = false;
+                dial_app_set_screen(app, "FIL-03");
+            } else {
+                dial_app_set_screen(app, "FIL-01");
+            }
+        }
+        return;
+    }
+
+    /* 15. Delete Confirmation (FIL-03) — Locked Rule #7: 600ms hold on Lingon button */
+    if (strcmp(scr, "FIL-03") == 0) {
+        if (ev->type == DIAL_EVENT_HOLD_600MS && ev->x >= 165.0f && ev->y >= 200.0f && ev->y <= 290.0f) {
+            app->file_deleted = true;
+            app->delete_hold_progress = 1.0f;
+            dial_app_set_screen(app, "FIL-01");
+        } else if (ev->type == DIAL_EVENT_TAP && ev->x < 165.0f && ev->y >= 200.0f && ev->y <= 290.0f) {
+            app->file_deleted = false;
+            app->delete_hold_progress = 0.0f;
+            dial_app_set_screen(app, "FIL-01");
+        }
+        return;
+    }
+
+    /* 16. Empty Folder State (FIL-04) */
+    if (strcmp(scr, "FIL-04") == 0) {
+        if (ev->type == DIAL_EVENT_TAP || ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "FIL-01");
+        }
+        return;
     }
 }
 
@@ -270,6 +395,9 @@ dial_gesture_event_t dial_app_on_touch(dial_app_t *app, const dial_touch_event_t
     if (strcmp(app->screen_id, "CC-02") == 0 && !touch->pressed) {
         app->unlock_hold_progress = 0.0f;
     }
+    if (strcmp(app->screen_id, "FIL-03") == 0 && !touch->pressed) {
+        app->delete_hold_progress = 0.0f;
+    }
     return ev;
 }
 
@@ -278,12 +406,17 @@ dial_gesture_event_t dial_app_tick(dial_app_t *app, uint32_t now_ms) {
     memset(&ev, 0, sizeof(ev));
     if (!app) return ev;
 
-    /* Update live 600ms hold progress on CC-02 Touch Lock Shield */
+    /* Update live 600ms hold progress on CC-02 Touch Lock Shield or FIL-03 Hold to Delete */
     if (strcmp(app->screen_id, "CC-02") == 0 && app->fsm.touch_active) {
         uint32_t held = (now_ms > app->fsm.start_ts_ms) ? (now_ms - app->fsm.start_ts_ms) : 0u;
         float p = (float)held / (float)DIAL_HOLD_CONFIRM_MS;
         if (p > 1.0f) p = 1.0f;
         app->unlock_hold_progress = p;
+    } else if (strcmp(app->screen_id, "FIL-03") == 0 && app->fsm.touch_active && app->fsm.last_x >= 165.0f) {
+        uint32_t held = (now_ms > app->fsm.start_ts_ms) ? (now_ms - app->fsm.start_ts_ms) : 0u;
+        float p = (float)held / (float)DIAL_HOLD_CONFIRM_MS;
+        if (p > 1.0f) p = 1.0f;
+        app->delete_hold_progress = p;
     }
 
     /* Auto-dismiss NP-05 Volume HUD after 800 ms */
