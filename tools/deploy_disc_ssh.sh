@@ -41,9 +41,10 @@ if [[ "$MODE" == "--local" ]]; then
     chmod +x "$VDISC/usr/data/mq_ui"
     cp "$REPO_ROOT/build/dialos-fjall-v1.0.0-disc.fw" "$VDISC/usr/data/dialos-fjall-v1.0.0-disc.fw"
 
-    cat > "$VDISC/etc/diskos_manifest" <<EOF
+    cat > "$VDISC/etc/dialos_manifest" <<EOF
+OS=DialOS v1.0.0 (Fjäll)
 DEVICE=FiiO Snowsky DISC (Ingenic X2000 / Dual CS43131)
-UI_BINARY=/usr/data/mq_ui
+UI_BINARY=/usr/bin/mq_ui
 PRCTL_NAME=mq_ui
 FB_DEVICE=/dev/fb0 (360x360 visible, 360x1080 virtual, 32bpp XRGB8888, 180-deg rotated)
 KEYS_DEVICE=/dev/input/event0 (x2000_key: VOLUP=114, VOLDOWN=115, POWER=116, PLAY=164)
