@@ -699,7 +699,8 @@ static uint32_t count_dir_visible_items(const char *path) {
 static void update_dir_breadcrumb_label(const char *dir_path) {
     const char *root_base = strrchr(g_root_path, '/');
     root_base = (root_base && root_base[1]) ? (root_base + 1) : g_root_path;
-    if (strncmp(g_root_path, "/mnt/mmcblk", 11) == 0) {
+    if (strncmp(g_root_path, "/mnt/mmcblk", 11) == 0 ||
+        strncmp(g_root_path, "/tmp/sdcard", 11) == 0) {
         root_base = "microSD";
     } else if (strlen(root_base) > 10) {
         root_base = "Root";
@@ -1342,7 +1343,10 @@ void dial_sys_get_free_space_str(char *out_buf, size_t cap) {
         s_cached_path[sizeof(s_cached_path) - 1] = '\0';
         s_last_vfs_tick = now_ms;
 
-        const char *prefix = (strncmp(path, "/mnt/mmcblk", 11) == 0) ? "microSD" : "Disk";
+        const char *prefix = (strncmp(path, "/mnt/mmcblk", 11) == 0 ||
+                              strncmp(path, "/tmp/sdcard", 11) == 0)
+                                 ? "microSD"
+                                 : "Disk";
         struct statvfs vfs;
         if (statvfs(path, &vfs) == 0) {
             uint64_t free_bytes = (uint64_t)vfs.f_bavail * (uint64_t)vfs.f_frsize;

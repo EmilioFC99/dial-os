@@ -251,16 +251,97 @@ def cmd_doctor(_args):
         sys.exit(1)
 
 
+def find_cached_stock_squashfs():
+    for mver in ("257", "240", "228", "209"):
+        sq = os.path.join(BUILD_DIR, f"stock_V{mver}.squashfs")
+        exp_sz, exp_sha = CATALOGUE[mver]["rootfs"]
+        if os.path.exists(sq) and os.path.getsize(sq) == exp_sz:
+            h = hashlib.sha256(open(sq, "rb").read()).hexdigest()
+            if h == exp_sha:
+                return mver, sq
+    return None, None
+
+
+def auto_discover_firmware_zip() -> str:
+    candidates = sorted(
+        glob.glob(os.path.expanduser("~/Downloads/*SNOWSKY*DISC*.zip"))
+        + glob.glob(os.path.expanduser("~/Downloads/*DISC*update*.zip"))
+    )
+    return candidates[-1] if candidates else ""
+
+
+def patch_squashfs_into_nand(mver: str, stock_sqfs: str, ui_bin: str):
+    os.makedirs(BUILD_DIR, exist_ok=True)
+    os.makedirs(MACOS_BACKUP_DIR, exist_ok=True)
+    stock_backup_bin = os.path.join(MACOS_BACKUP_DIR, f"stock_V{mver}_nand.bin")
+    if not os.path.exists(stock_backup_bin) or os.path.getsize(stock_backup_bin) != NAND_IMG_SIZE:
+        pad_to_nand_size(stock_sqfs, stock_backup_bin)
+    shutil.copyfile(stock_backup_bin, os.path.join(BUILD_DIR, "stock_nand.bin"))
+
+    print("[3/4] Patching SquashFS natively on macOS (hdiutil Case-Sensitive APFS + LZO)...")
+    unsq = os.path.join(VENDOR_DIR, "unsquashfs")
+    mksq = os.path.join(VENDOR_DIR, "mksquashfs")
+    dialos_sqfs = os.path.join(BUILD_DIR, f"dialos_V{mver}.squashfs")
+
+    with tempfile.TemporaryDirectory(prefix="dialos-mac-") as workdir:
+        with macos_case_sensitive_apfs(workdir) as cs_mnt:
+            rf_dir = os.path.join(cs_mnt, "rootfs")
+            subprocess.run([unsq, "-processors", "1", "-d", rf_dir, stock_sqfs], check=True)
+            stock_ui_path = os.path.join(rf_dir, "usr", "bin", "mq_ui")
+            backup_ui_path = os.path.join(rf_dir, "usr", "bin", "mq_ui.stock")
+            if os.path.exists(stock_ui_path):
+                shutil.copy2(stock_ui_path, backup_ui_path)
+            shutil.copyfile(ui_bin, stock_ui_path)
+            os.chmod(stock_ui_path, 0o755)
+
+            if os.path.exists(dialos_sqfs):
+                os.remove(dialos_sqfs)
+            subprocess.run(
+                [mksq, rf_dir, dialos_sqfs, "-comp", "lzo", "-b", "131072",
+                 "-no-xattrs", "-all-root", "-noappend", "-processors", "1"],
+                check=True,
+            )
+
+    out_nand_bin = os.path.join(BUILD_DIR, "dialos_nand.bin")
+    pad_to_nand_size(dialos_sqfs, out_nand_bin)
+    with open(os.path.join(BUILD_DIR, "dialos_nand.ver"), "w") as vf:
+        vf.write(mver)
+
+    print(f"[4/4] Success! Built macOS flashable NAND image:")
+    print(f"      DialOS Image : {out_nand_bin} ({os.path.getsize(out_nand_bin):,} B, V{mver})")
+    print(f"      Stock Backup : {stock_backup_bin}")
+    print("\nNext step: Run `make flash` (or `./dialos-mac flash`)")
+
+
 def cmd_build(args):
-    stock_zip = os.path.expanduser(args.firmware_zip)
     print("==================================================================")
     print(" DialOS macOS Installer — Building Flashable Image from Stock ZIP")
     print("==================================================================")
+    ui_bin = os.path.join(VENDOR_DIR, "mq_ui")
+    if not os.path.exists(ui_bin):
+        raise RuntimeError("Missing macos/vendor/mq_ui binary. Run `make disc-mipsel` first.")
+
+    os.makedirs(BUILD_DIR, exist_ok=True)
+    os.makedirs(MACOS_BACKUP_DIR, exist_ok=True)
+
+    # Fast-path: if verified stock_V257.squashfs is already in build/ and no explicit zip requested
+    if not getattr(args, "firmware_zip", None):
+        cached_mver, cached_sqfs = find_cached_stock_squashfs()
+        if cached_mver and cached_sqfs:
+            print(f"[1/4] Found verified stock {CATALOGUE[cached_mver]['name']} SquashFS in build/")
+            print("[2/4] Skipping AES-256-CBC chunk decryption (SHA-256 already verified).")
+            patch_squashfs_into_nand(cached_mver, cached_sqfs, ui_bin)
+            return
+
+    raw_zip = getattr(args, "firmware_zip", None) or auto_discover_firmware_zip()
+    if not raw_zip:
+        raise RuntimeError("No firmware ZIP specified and none found in ~/Downloads/. Pass path to SNOWSKY_DISC_update_v257.zip.")
+    stock_zip = os.path.expanduser(raw_zip)
     if not os.path.exists(stock_zip):
         raise RuntimeError(f"Firmware ZIP not found: {stock_zip}")
 
     file_sz = os.path.getsize(stock_zip)
-    print(f"[1/4] Verifying official FiiO ZIP archive ({file_sz / (1024*1024):.1f} MB)...")
+    print(f"[1/4] Verifying official FiiO ZIP archive ({file_sz / (1024*1024):.1f} MB): {stock_zip}")
     try:
         with zipfile.ZipFile(stock_zip, "r") as zf:
             bad = zf.testzip()
@@ -273,13 +354,6 @@ def cmd_build(args):
             f"whereas the complete V2.57 archive is ~105.6 MB.\n"
             f"      Please re-download the complete FiiO firmware ZIP and run again."
         ) from exc
-
-    ui_bin = os.path.join(VENDOR_DIR, "mq_ui")
-    if not os.path.exists(ui_bin):
-        raise RuntimeError("Missing macos/vendor/mq_ui binary. Run `./dialos-mac doctor` first.")
-
-    os.makedirs(BUILD_DIR, exist_ok=True)
-    os.makedirs(MACOS_BACKUP_DIR, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="dialos-mac-") as workdir:
         unzip_dir = os.path.join(workdir, "unzip")
@@ -316,44 +390,31 @@ def cmd_build(args):
         if os.path.getsize(stock_sqfs) != exp_sz or h.hexdigest() != exp_sha:
             raise RuntimeError(f"Stock rootfs SHA-256 mismatch (got {h.hexdigest()[:16]}..., expected {exp_sha[:16]}...)")
 
-        stock_backup_bin = os.path.join(MACOS_BACKUP_DIR, f"stock_V{mver}_nand.bin")
-        pad_to_nand_size(stock_sqfs, stock_backup_bin)
-        shutil.copyfile(stock_backup_bin, os.path.join(BUILD_DIR, "stock_nand.bin"))
-        print(f"      Saved verified stock recovery image -> {stock_backup_bin}")
+    patch_squashfs_into_nand(mver, stock_sqfs, ui_bin)
 
-        print("[3/4] Patching SquashFS natively on macOS (hdiutil Case-Sensitive APFS + LZO)...")
-        unsq = os.path.join(VENDOR_DIR, "unsquashfs")
-        mksq = os.path.join(VENDOR_DIR, "mksquashfs")
-        dialos_sqfs = os.path.join(BUILD_DIR, f"dialos_V{mver}.squashfs")
 
-        with macos_case_sensitive_apfs(workdir) as cs_mnt:
-            rf_dir = os.path.join(cs_mnt, "rootfs")
-            subprocess.run([unsq, "-processors", "1", "-d", rf_dir, stock_sqfs], check=True)
-            stock_ui_path = os.path.join(rf_dir, "usr", "bin", "mq_ui")
-            backup_ui_path = os.path.join(rf_dir, "usr", "bin", "mq_ui.stock")
-            if os.path.exists(stock_ui_path):
-                shutil.copy2(stock_ui_path, backup_ui_path)
-            shutil.copyfile(ui_bin, stock_ui_path)
-            os.chmod(stock_ui_path, 0o755)
+def wait_for_maskrom_device(timeout_sec: int = 180) -> int:
+    n_dev = macos_detect_maskrom()
+    if n_dev > 0:
+        return n_dev
 
-            if os.path.exists(dialos_sqfs):
-                os.remove(dialos_sqfs)
-            subprocess.run(
-                [mksq, rf_dir, dialos_sqfs, "-comp", "lzo", "-b", "131072",
-                 "-no-xattrs", "-all-root", "-noappend", "-processors", "1"],
-                check=True,
-            )
+    print("  [WAITING] Snowsky DISC not yet detected in USB Mask-ROM mode (VID=0xa108, PID=0xeaef).")
+    print("  Please connect your device now:")
+    print("    1. Power the Snowsky DISC completely OFF.")
+    print("    2. Hold down the Volume-Down button.")
+    print("    3. While holding Volume-Down, plug the USB-C cable into the USB/DATA port.")
+    print("       (The screen will remain black — that means Mask-ROM mode is active!)")
+    print(f"  Waiting up to {timeout_sec}s for USB connection...", flush=True)
 
-        out_nand_bin = os.path.join(BUILD_DIR, "dialos_nand.bin")
-        pad_to_nand_size(dialos_sqfs, out_nand_bin)
-        with open(os.path.join(BUILD_DIR, "dialos_nand.ver"), "w") as vf:
-            vf.write(mver)
-
-        print(f"[4/4] Success! Built macOS flashable NAND image:")
-        print(f"      DialOS Image : {out_nand_bin} ({os.path.getsize(out_nand_bin):,} B, V{mver})")
-        print(f"      Stock Backup : {stock_backup_bin}")
-        print("\nNext step: Power OFF Snowsky DISC, hold Volume Down, plug in USB, and run:")
-        print("  ./dialos-mac flash")
+    t0 = time.time()
+    while int(time.time() - t0) < timeout_sec:
+        time.sleep(0.5)
+        n_dev = macos_detect_maskrom()
+        if n_dev > 0:
+            print("  [CONNECTED] Detected Snowsky DISC in Ingenic X2000 USB Mask-ROM mode (a108:eaef)!", flush=True)
+            time.sleep(0.5)
+            return n_dev
+    return 0
 
 
 def run_usbboot_flash(image_path: str, mver: str, label: str):
@@ -363,13 +424,13 @@ def run_usbboot_flash(image_path: str, mver: str, label: str):
     if not os.path.exists(image_path) or os.path.getsize(image_path) != NAND_IMG_SIZE:
         raise RuntimeError(f"Invalid NAND image {image_path} (must be {NAND_IMG_SIZE} bytes)")
 
-    n_dev = macos_detect_maskrom()
+    n_dev = wait_for_maskrom_device(180)
     if n_dev == 0:
         raise RuntimeError(
-            "No Snowsky DISC detected in USB Mask-ROM mode (a108:eaef).\n"
+            "Timed out waiting for Snowsky DISC in USB Mask-ROM mode (a108:eaef).\n"
             "      1. Power the Snowsky DISC completely OFF.\n"
             "      2. Hold Down the Volume-Down button and plug in the USB-C cable (screen stays black).\n"
-            "      3. Re-run this command."
+            "      3. Re-run `make flash`."
         )
     if n_dev > 1:
         raise RuntimeError(f"Found {n_dev} Mask-ROM devices; disconnect other Ingenic devices first.")
@@ -428,7 +489,7 @@ def run_usbboot_flash(image_path: str, mver: str, label: str):
         w = struct.unpack("<256I", open(dbg_path, "rb").read(1024))
         magic, done, result, gate_res = w[0], w[9], w[16], w[128]
         if magic == 0x4006E006 and done == 0x55555555 and result == 0x600DF10C and gate_res == 1:
-            print("\n[SUCCESS] NAND flash & readback verification passed! Power-cycle your Snowsky DISC.")
+            print("\n[SUCCESS] NAND flash & readback verification passed! Hold Power for 10s to boot DialOS.")
         else:
             raise RuntimeError(
                 f"Writer reported non-success: magic=0x{magic:08X} done=0x{done:08X} "
@@ -436,11 +497,17 @@ def run_usbboot_flash(image_path: str, mver: str, label: str):
             )
 
 
-def cmd_flash(_args):
+def cmd_flash(args):
     ver_file = os.path.join(BUILD_DIR, "dialos_nand.ver")
     img_file = os.path.join(BUILD_DIR, "dialos_nand.bin")
-    if not os.path.exists(img_file) or not os.path.exists(ver_file):
-        raise RuntimeError("No built image found. Run `./dialos-mac build <firmware.zip>` first.")
+    ui_bin = os.path.join(VENDOR_DIR, "mq_ui")
+    if (
+        not os.path.exists(img_file)
+        or not os.path.exists(ver_file)
+        or (os.path.exists(ui_bin) and os.path.getmtime(ui_bin) > os.path.getmtime(img_file))
+    ):
+        print("[Auto-Build] Rebuilding NAND image with latest MIPS32r2 mq_ui binary...")
+        cmd_build(args)
     mver = open(ver_file).read().strip()
     run_usbboot_flash(img_file, mver, "Installing DialOS v1.0.0 (Fjäll)")
 
@@ -450,7 +517,7 @@ def cmd_restore_stock(_args):
     if not backups:
         raise RuntimeError(
             f"No saved stock backup in {MACOS_BACKUP_DIR}.\n"
-            "      Run `./dialos-mac build <official_fiio_update.zip>` first to extract the stock image."
+            "      Run `./dialos-mac build` first to extract the stock image."
         )
     latest = backups[-1]
     m = re.search(r"stock_V(\d+)_nand\.bin", os.path.basename(latest))
@@ -464,7 +531,7 @@ def main():
 
     sub.add_parser("doctor", help="Check macOS tools, USB Mask-ROM connection, and saved stock backups")
     p_build = sub.add_parser("build", help="Verify official FiiO ZIP, save stock backup, and build DialOS NAND image")
-    p_build.add_argument("firmware_zip", help="Path to official FiiO SNOWSKY_DISC_update_V2.XX.zip")
+    p_build.add_argument("firmware_zip", nargs="?", default=None, help="Optional path to official FiiO SNOWSKY_DISC_update_V2.XX.zip")
     sub.add_parser("flash", help="Flash built DialOS image to Snowsky DISC in USB Mask-ROM mode")
     sub.add_parser("restore-stock", help="Restore saved stock FiiO firmware backup in USB Mask-ROM mode")
 

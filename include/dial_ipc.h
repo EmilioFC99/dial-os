@@ -134,6 +134,22 @@ static inline size_t dial_ipc_format_frame(char *out_frame,
         int n = snprintf(out_frame, cap, "0653000C%04X", filt & 0xFFFFu);
         return (n > 0) ? (size_t)n : 0;
     }
+    if (strcmp(opcode, "0602") == 0 && p[0] == '/') {
+#if defined(__linux__)
+        const char *m3u_path = "/tmp/dialos_play.m3u";
+        FILE *mfp = fopen(m3u_path, "w");
+        if (mfp) {
+            fprintf(mfp, "#EXTM3U\n%s\n", p);
+            fclose(mfp);
+        }
+        unsigned total_len = (unsigned)(16u + strlen(m3u_path));
+        int n = snprintf(out_frame, cap, "0100%04X00000004%s", total_len & 0xFFFFu, m3u_path);
+        return (n > 0) ? (size_t)n : 0;
+#else
+        int n = snprintf(out_frame, cap, "0602000C0000");
+        return (n > 0) ? (size_t)n : 0;
+#endif
+    }
     unsigned val = (unsigned)strtoul(p, NULL, 10);
     int n = snprintf(out_frame, cap, "%.4s000C%04X", opcode, val & 0xFFFFu);
     return (n > 0) ? (size_t)n : 0;

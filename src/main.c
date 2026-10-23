@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 #include "dial_config.h"
 #include "dial_theme.h"
@@ -15,18 +17,71 @@
 
 static dial_app_t g_app;
 
+#if defined(DIAL_TARGET_DISC) && defined(__linux__)
+static bool disc_is_sdcard_mounted(void) {
+    FILE *fp = fopen("/proc/mounts", "r");
+    if (!fp) return false;
+    char line[512];
+    bool mounted = false;
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        if (strstr(line, " /tmp/sdcard ") != NULL) {
+            mounted = true;
+            break;
+        }
+    }
+    fclose(fp);
+    return mounted;
+}
+
+static bool disc_try_mount_sdcard(void) {
+    (void)mkdir("/tmp/sdcard", 0755);
+    if (disc_is_sdcard_mounted()) {
+        return true;
+    }
+    const char *dev = NULL;
+    if (access("/dev/mmcblk0p1", F_OK) == 0) {
+        dev = "/dev/mmcblk0p1";
+    } else if (access("/dev/mmcblk0", F_OK) == 0) {
+        dev = "/dev/mmcblk0";
+    }
+    if (!dev) {
+        return false;
+    }
+    char cmd[256];
+    snprintf(cmd, sizeof(cmd),
+             "mount -o iocharset=utf8 %s /tmp/sdcard 2>/dev/null || "
+             "mount %s /tmp/sdcard 2>/dev/null || "
+             "ntfs-3g -o utf8 %s /tmp/sdcard 2>/dev/null",
+             dev, dev, dev);
+    (void)system(cmd);
+    return disc_is_sdcard_mounted();
+}
+#endif
+
 int main(int argc, char **argv) {
 #if defined(DIAL_TARGET_DISC) && defined(__linux__)
-    /* SD-Card Hot-Reload & Stock Escape Hatch (zero 18-minute re-flash needed) */
+    /* Mount /tmp/sdcard (matching stock Snowsky DISC mq_ui) + SD Hot-Reload / Escape Hatch */
     if (!getenv("DIAL_SD_BOOTED")) {
         setenv("DIAL_SD_BOOTED", "1", 1);
-        if (access("/mnt/mmcblk0p1/dialos/use_stock", F_OK) == 0) {
+        for (int wait_i = 0; wait_i < 10; ++wait_i) {
+            if (disc_try_mount_sdcard()) break;
+            struct timespec ts = {0, 150000000L};
+            nanosleep(&ts, NULL);
+        }
+        if (access("/tmp/sdcard/dialos/use_stock", F_OK) == 0 ||
+            access("/mnt/mmcblk0p1/dialos/use_stock", F_OK) == 0) {
             execv("/usr/bin/mq_ui.stock", argv);
+        }
+        if (access("/tmp/sdcard/dialos/mq_ui", F_OK) == 0) {
+            (void)system("cp /tmp/sdcard/dialos/mq_ui /tmp/mq_ui.sd && chmod +x /tmp/mq_ui.sd");
+            execv("/tmp/mq_ui.sd", argv);
         }
         if (access("/mnt/mmcblk0p1/dialos/mq_ui", F_OK) == 0) {
             (void)system("cp /mnt/mmcblk0p1/dialos/mq_ui /tmp/mq_ui.sd && chmod +x /tmp/mq_ui.sd");
             execv("/tmp/mq_ui.sd", argv);
         }
+    } else {
+        (void)disc_try_mount_sdcard();
     }
 #endif
     bool headless = false;
@@ -55,7 +110,7 @@ int main(int argc, char **argv) {
     }
 
 #if defined(DIAL_TARGET_DISC)
-    const char *target_music = music_dir ? music_dir : "/mnt/mmcblk0p1";
+    const char *target_music = music_dir ? music_dir : "/tmp/sdcard";
 #else
     const char *home = getenv("HOME");
     char default_music[512];
@@ -83,6 +138,11 @@ int main(int argc, char **argv) {
         return (rc == 0) ? 0 : 2;
     }
 
+#if defined(DIAL_TARGET_DISC) && defined(__linux__)
+    bool sd_was_mounted = disc_is_sdcard_mounted();
+    uint32_t sd_poll_frames = 0;
+#endif
+
     bool running = true;
     while (running) {
         /* Drain all pending input events for zero-latency touch/mouse/key response */
@@ -105,6 +165,18 @@ int main(int argc, char **argv) {
             }
         }
         if (!running) break;
+
+#if defined(DIAL_TARGET_DISC) && defined(__linux__)
+        if (++sd_poll_frames >= 120u) {
+            sd_poll_frames = 0;
+            bool now_mounted = disc_try_mount_sdcard();
+            if (now_mounted != sd_was_mounted ||
+                (now_mounted && dial_media_get_fs_entry_count() == 0)) {
+                sd_was_mounted = now_mounted;
+                dial_media_scan_root(target_music);
+            }
+        }
+#endif
 
         dial_app_tick(&g_app, dial_hal_ticks_ms());
         dial_app_render(&g_app, fb);
