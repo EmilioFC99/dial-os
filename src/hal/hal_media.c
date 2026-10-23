@@ -49,19 +49,19 @@ static char            g_cur_dir_label[128];
 static dial_fs_entry_t g_fs_entries[DIAL_MAX_DIR_ENTRIES];
 static size_t          g_fs_entry_count = 0;
 
-/* Active Now-Playing State */
+/* Active Now-Playing State (starts empty until a real track is selected) */
 static size_t   g_now_album_idx = 0;
 static size_t   g_now_track_idx = 0;
-static char     g_now_title[96]       = "Teardrop";
-static char     g_now_artist[64]      = "Massive Attack";
-static char     g_now_album[96]       = "Mezzanine · 1998";
-static char     g_now_filepath[512]   = "/mnt/sdcard/Music/Mezzanine/03.flac";
-static uint32_t g_now_sample_rate     = 96000;
-static uint32_t g_now_bit_depth       = 24;
-static uint32_t g_now_bitrate_kbps    = 2842;
-static uint32_t g_now_duration_sec    = 330;
+static char     g_now_title[96]       = "No Track Playing";
+static char     g_now_artist[64]      = "";
+static char     g_now_album[96]       = "";
+static char     g_now_filepath[512]   = "";
+static uint32_t g_now_sample_rate     = 0;
+static uint32_t g_now_bit_depth       = 0;
+static uint32_t g_now_bitrate_kbps    = 0;
+static uint32_t g_now_duration_sec    = 0;
 static bool     g_portable_playing    = false;
-static float    g_portable_progress   = 0.41f;
+static float    g_portable_progress   = 0.0f;
 
 /* ── macOS AudioToolbox Real Streaming State ── */
 #if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)

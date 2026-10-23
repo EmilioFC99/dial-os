@@ -5,53 +5,27 @@
 void dial_bt_init(dial_bt_manager_t *mgr) {
     if (!mgr) return;
     memset(mgr, 0, sizeof(*mgr));
-
-    mgr->peer_count = 3;
-    mgr->bt_enabled = true;
-    mgr->connected  = true;
+    mgr->peer_count        = 0;
+    mgr->bt_enabled        = false;
+    mgr->connected         = false;
     mgr->inquiry_scan_started = false;
-    mgr->active_peer_idx = 0;
-    mgr->last_page_latency_ms = 265;
+    mgr->active_peer_idx   = 0;
+    mgr->active_codec      = DIAL_BT_CODEC_SBC;
+    mgr->active_ldac_quality = DIAL_LDAC_MAX;
+    mgr->restored_volume   = 50;
+}
 
-    /* Index 0 (Default / Most Recently Connected): Sony WH-1000XM5 */
-    const uint8_t mac0[6] = { 0x94, 0xDB, 0x56, 0x11, 0x22, 0x33 };
-    memcpy(mgr->peers[0].bd_addr, mac0, 6);
-    strncpy(mgr->peers[0].name, "WH-1000XM5", sizeof(mgr->peers[0].name) - 1);
-    mgr->peers[0].clock_offset     = 0x4A2Cu;
-    mgr->peers[0].page_scan_mode   = 0; /* R0 fast page scan */
-    mgr->peers[0].remote_seid      = 5; /* Cached LDAC SEP ID */
-    mgr->peers[0].preferred_codec  = DIAL_BT_CODEC_LDAC;
-    mgr->peers[0].ldac_quality     = DIAL_LDAC_MAX; /* 990 kbps */
-    mgr->peers[0].saved_volume     = 78;
-    mgr->peers[0].last_connected_ts= 1729620000u;
-
-    /* Index 1: Sennheiser Momentum 4 */
-    const uint8_t mac1[6] = { 0x00, 0x1B, 0x66, 0x44, 0x55, 0x66 };
-    memcpy(mgr->peers[1].bd_addr, mac1, 6);
-    strncpy(mgr->peers[1].name, "Sennheiser M4", sizeof(mgr->peers[1].name) - 1);
-    mgr->peers[1].clock_offset     = 0x3110u;
-    mgr->peers[1].page_scan_mode   = 1;
-    mgr->peers[1].remote_seid      = 3;
-    mgr->peers[1].preferred_codec  = DIAL_BT_CODEC_APTX;
-    mgr->peers[1].ldac_quality     = DIAL_LDAC_MAX;
-    mgr->peers[1].saved_volume     = 72;
-    mgr->peers[1].last_connected_ts= 1729610000u;
-
-    /* Index 2: AirPods Pro */
-    const uint8_t mac2[6] = { 0xAC, 0xBC, 0x32, 0x77, 0x88, 0x99 };
-    memcpy(mgr->peers[2].bd_addr, mac2, 6);
-    strncpy(mgr->peers[2].name, "AirPods Pro", sizeof(mgr->peers[2].name) - 1);
-    mgr->peers[2].clock_offset     = 0x1F08u;
-    mgr->peers[2].page_scan_mode   = 1;
-    mgr->peers[2].remote_seid      = 2;
-    mgr->peers[2].preferred_codec  = DIAL_BT_CODEC_AAC;
-    mgr->peers[2].ldac_quality     = DIAL_LDAC_MAX;
-    mgr->peers[2].saved_volume     = 66;
-    mgr->peers[2].last_connected_ts= 1729600000u;
-
-    mgr->active_codec        = mgr->peers[0].preferred_codec;
-    mgr->active_ldac_quality = mgr->peers[0].ldac_quality;
-    mgr->restored_volume     = mgr->peers[0].saved_volume;
+bool dial_bt_register_peer(dial_bt_manager_t *mgr, const dial_bt_peer_cache_t *peer) {
+    if (!mgr || !peer) return false;
+    for (size_t i = 0; i < mgr->peer_count; ++i) {
+        if (memcmp(mgr->peers[i].bd_addr, peer->bd_addr, 6) == 0) {
+            mgr->peers[i] = *peer;
+            return true;
+        }
+    }
+    if (mgr->peer_count >= DIAL_BT_CACHE_MAX_PEERS) return false;
+    mgr->peers[mgr->peer_count++] = *peer;
+    return true;
 }
 
 void dial_bt_negotiate_codec_ladder(uint32_t remote_cap_mask,

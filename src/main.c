@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "dial_config.h"
 #include "dial_theme.h"
 #include "dial_hal.h"
@@ -13,8 +14,21 @@
 #include "dial_media.h"
 
 int main(int argc, char **argv) {
+#if defined(DIAL_TARGET_DISC) && defined(__linux__)
+    /* SD-Card Hot-Reload & Stock Escape Hatch (zero 18-minute re-flash needed) */
+    if (!getenv("DIAL_SD_BOOTED")) {
+        setenv("DIAL_SD_BOOTED", "1", 1);
+        if (access("/mnt/mmcblk0p1/dialos/use_stock", F_OK) == 0) {
+            execv("/usr/bin/mq_ui.stock", argv);
+        }
+        if (access("/mnt/mmcblk0p1/dialos/mq_ui", F_OK) == 0) {
+            (void)system("cp /mnt/mmcblk0p1/dialos/mq_ui /tmp/mq_ui.sd && chmod +x /tmp/mq_ui.sd");
+            execv("/tmp/mq_ui.sd", argv);
+        }
+    }
+#endif
     bool headless = false;
-    const char *screen_id  = "NP-01";
+    const char *screen_id  = "HOM-01";
     const char *out_path   = "/tmp/dialos_snapshot.png";
     const char *music_dir  = NULL;
     dial_mode_t mode       = DIAL_MODE_NIGHT;
@@ -43,9 +57,12 @@ int main(int argc, char **argv) {
 
     if (!headless) {
 #if defined(DIAL_TARGET_DISC)
-        const char *target_music = music_dir ? music_dir : "/tmp/sdcard";
+        const char *target_music = music_dir ? music_dir : "/mnt/mmcblk0p1";
 #else
-        const char *target_music = music_dir ? music_dir : "/Users/emilio.flores/Music/Au5";
+        const char *home = getenv("HOME");
+        char default_music[512];
+        snprintf(default_music, sizeof(default_music), "%s/Music", home ? home : ".");
+        const char *target_music = music_dir ? music_dir : default_music;
 #endif
         dial_media_scan_root(target_music);
     } else if (music_dir) {

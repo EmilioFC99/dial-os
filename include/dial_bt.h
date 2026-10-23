@@ -29,8 +29,11 @@ typedef struct {
     uint8_t              restored_volume;
 } dial_bt_manager_t;
 
-/* Initialize manager with the 3 Fjäll SET-07 reference peers (WH-1000XM5 Default at index 0) */
+/* Initialize manager with empty, disconnected state (no fake demo peers) */
 void dial_bt_init(dial_bt_manager_t *mgr);
+
+/* Register or update a real paired Bluetooth peer in the MRU cache */
+bool dial_bt_register_peer(dial_bt_manager_t *mgr, const dial_bt_peer_cache_t *peer);
 
 /* Enable Bluetooth and issue <400ms unicast Direct Page to peers[0] BEFORE any inquiry scan */
 bool dial_bt_enable_fast_connect(dial_bt_manager_t *mgr, bool peer0_reachable, int8_t rssi_dbm);

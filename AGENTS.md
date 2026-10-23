@@ -1,5 +1,10 @@
 # DialOS — Workspace Rules & Single Source of Truth (Fjäll Design System)
 
+> **CRITICAL ARCHITECTURAL RULE — VISUAL THEME vs. REAL OS BEHAVIOR:**
+> `assets/nordic/fjall-design-system.html` and the screen IDs (`SYS-00` through `OVL-04`) define the **visual theme, layout templates, typography, colour tokens, and interaction states** — they are **NOT** a slide deck to step through sequentially (`screen_id + 1`), and their sample text (`"Tycho"`, `"Bonobo"`, `"Studio_5G"`, `"Sony WH-1000XM5"`, `"84%"`, `"09:41"`) is **placeholder illustration only**.
+> - **ZERO FAKE / DEMO DATA:** Never hardcode sample songs, artists, albums, Wi-Fi SSIDs, Bluetooth devices, battery percentages, or clocks in C code. Every list and status indicator must be driven by **real filesystem/SD-card data (`/mnt/mmcblk0p1`)** and **real hardware/sysfs state**. If nothing is connected or no SD card is inserted, show the real disconnected/empty state.
+> - **REAL HIERARCHICAL NAVIGATION & BACK GESTURE:** Screen IDs like `NP-02` (Quick Actions), `NP-05` (Volume HUD), `FIL-02` (File Action Sheet), `FIL-03` (Delete Confirm), or `HOM-01..03` are **dynamic states, overlays, or scroll positions of real views**, never linear slides. Swiping right from the left edge MUST always act as a universal **Go Back** gesture popping the navigation/directory stack.
+
 ## 1. Visual & Token Single Source of Truth (SSOT)
 All UI implementation, simulator views, and C firmware code MUST strictly conform to the **Fjäll** ("Nordic Office & Nature") design system:
 - **Interactive Spec & 38 Master Screens:** `assets/nordic/fjall-design-system.html`
@@ -105,8 +110,8 @@ Do not regress any of the following locked design specifications:
      - `refactor(<scope>): ...` — internal restructuring without behavior change
      - `build:` / `ci:` / `chore:` — toolchain, GitHub Actions, or repo maintenance
 2. **Zero Code Ships Without Tests & Live Interactive UI Verification (TDD Gate):**
-   - **Never commit or merge C implementation code without accompanying automated unit, snapshot, AND interactive UI tests** (`tests/`).
-   - Every logic module (polar math, gesture FSM, Bluetooth cache, list physics) requires unit tests; every UI screen (`SYS`, `LCK`, `HOM`, `CC`, `NP`, `LIB`, `FIL`, `MOD`, `SET`, `GAM`, `OVL`) requires headless snapshot verification (`--headless --screen <ID>`); and every interactive flow (scrubbing `r = 38px` vinyl seek ring, tapping `CC-01` pucks, rim scrolling lists, `600 ms` hold unlock/delete) MUST be verified end-to-end in `tests/test_ui_interaction.c` and playable live in the native macOS Cocoa / SDL2 window (`make sim && ./build/dialos-sim`) passing under `AddressSanitizer` + `UndefinedBehaviorSanitizer`.
+   - **Never commit or merge C implementation code without accompanying automated unit AND interactive UI tests** (`tests/`).
+   - Every logic module (polar math, gesture FSM, Bluetooth cache, list physics, navigation stack, sysfs telemetry, media indexer) requires unit tests; and every interactive flow (universal left-edge Back swipe, directory drill-down, scrubbing `r = 38px` vinyl seek ring, tapping `CC-01` pucks, rim scrolling dynamic lists, `600 ms` hold unlock/delete, empty/disconnected states) MUST be verified end-to-end and playable live in the native macOS Cocoa / SDL2 window (`make sim && ./build/dialos-sim`) passing under `AddressSanitizer` + `UndefinedBehaviorSanitizer`.
 3. **Tagged Releases & Deployments:**
    - Every release or deployment milestone MUST be tagged with an annotated Semantic Version tag (`git tag -a vX.Y.Z -m "..."`).
 4. **Open-Source Showcase & GitHub Pages Sync:**
