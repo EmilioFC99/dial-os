@@ -1,13 +1,13 @@
 # DialOS Session Handoff & State Summary
 
 **Date:** 2026-10-22  
-**Current Milestone Completed:** Milestone 4 (`v0.5.0` — All 38 Fjäll Master Screens) & Milestone 5 (`v1.0.0` — Snowsky DISC HAL, CS43131 Anti-Pop Relay Sequencer & Real Audio Engine)  
-**Static RAM Footprint:** **`2.44 MB`** (well below the $\le 24.0\text{ MB}$ hardware budget)  
-**Test Suite:** 8 / 8 suites passing clean under `AddressSanitizer` + `UndefinedBehaviorSanitizer`
+**Current Milestone Completed:** All Milestones (`v0.1.0` → `v1.0.0`) — 38/38 Fjäll Master Screens, Real Audio Engine, CS43131 Anti-Pop Relay Sequencer, Snowsky DISC HAL (`hal_disc.c`), MIPS32 Cross-Compile `Dockerfile`, and CRC32 `.fw` Firmware Packager  
+**Static RAM Footprint:** **`2.44 MB`** (`1.42 MB` on `dialos-disc` target — well below the $\le 24.0\text{ MB}$ hardware budget)  
+**Test Suite:** 9 / 9 suites + `.fw` CRC32 verifier passing clean under `AddressSanitizer` + `UndefinedBehaviorSanitizer`
 
 ---
 
-## 1. What Was Accomplished in this Session
+## 1. What Was Accomplished
 
 1. **All 38/38 Master Screens in C (`src/screens/`):**
    - Core & Transport (`SYS-00`, `LCK-01..02`, `HOM-01..03`, `CC-01..02`, `NP-01..05`)
@@ -18,17 +18,18 @@
    - System Overlays (`OVL-01..04`) including toasts, low battery dialog, and charging horizon
 
 2. **Real Audio Streaming & Directory Scanner (`src/hal/hal_media.c`, `include/dial_media.h`):**
-   - Live Apple `AudioToolbox` (ExtAudioFile + AudioQueue) streaming real FLAC/MP3/WAV audio
+   - Live Apple `AudioToolbox` (ExtAudioFile + AudioQueue) streaming real FLAC/MP3/WAV/M4A audio
    - Real-time bilinear `cover.jpg` decoder (`ImageIO` / `CoreGraphics` -> `180×180` RGB565)
    - Real library scanning and file navigation tested against `/Users/emilio.flores/Music/Au5` (75 real albums, 189 tracks)
-   - Vinyl spin and inner seek ring sync directly with real track position; scrubbing seeks the live audio
+   - Portable fallback playback/seek state when compiled with `-DDIAL_TARGET_DISC` on Linux/MIPS32
 
-3. **FiiO Snowsky DISC Hardware Target Backend & CS43131 Anti-Pop Sequencer:**
-   - `src/hal/hal_disc.c`: `/dev/fb0` RGB565 mmap, `/dev/input/event0` (touch), `/dev/input/event1` (keys), `/player` & `/ui` POSIX mqueues
+3. **FiiO Snowsky DISC Hardware Target Backend, CS43131 Anti-Pop Sequencer & `.fw` Packager:**
+   - `src/hal/hal_disc.c`: `/dev/fb0` RGB565 `mmap` with `FBIOPAN_DISPLAY` double-buffered page flipping, `/dev/input/event0` (touch), `/dev/input/event1` (keys), `/player` & `/ui` POSIX mqueues
    - `src/core/dial_dac.c` & `include/dial_dac.h`: `8 ms` digital volume ramp-down -> `GPIO_PD14` relay switch -> `12 ms` contact bounce settle -> `8 ms` ramp-up (28 ms total, zero clicks/pops)
-   - Tested by `tests/test_dac_relay.c`
+   - `tools/pack_disc_fw.c`: Generates and verifies `build/dialos-fjall-v1.0.0-disc.fw` with IEEE 802.3 CRC32 checksums and embedded `/data/dialos/config.json`
+   - `Dockerfile`: Debian Bookworm cross-toolchain (`mipsel-linux-gnu-gcc -mips32r2 -EL`) producing stripped MIPS32 ELF (`build/dialos-disc-mipsel`) and `.fw` update image
 
-4. **All 8 Test Suites Passing Clean:**
+4. **All 9 Test Suites + Firmware Verifier Passing Clean:**
    - `build/test_polar_gestures`
    - `build/test_draw_primitives`
    - `build/test_screens_v030`
@@ -36,17 +37,26 @@
    - `build/test_screens_v050`
    - `build/test_bt_cache`
    - `build/test_dac_relay`
+   - `build/test_hal_disc`
    - `build/test_ui_interaction`
+   - `build/pack_disc_fw --verify build/dialos-fjall-v1.0.0-disc.fw`
    - Headless PNG snapshot generation for all 38 screens
 
 ---
 
 ## 2. How to Run & Verify on Any Machine
 
-### Build & Run Tests
+### Build & Run All 9 Test Suites + `.fw` Check
 ```bash
 make clean
 make test
+```
+
+### Verify Snowsky DISC Target Binary & `.fw` Package
+```bash
+make disc-check
+# Or with Docker daemon running for MIPS32 little-endian ELF:
+make docker-disc
 ```
 
 ### Launch Live Interactive Simulator with Real Audio
@@ -70,15 +80,3 @@ make sim
   - `Up` / `Down`: Hardware volume
   - `S`: Save snapshot to `/tmp/dialos_live.png`
   - `Q`: Quit
-
----
-
-## 3. Next Steps for Continuing Session
-
-1. **Tag Releases:**
-   - Tag `v0.5.0` (all 38 master screens + fast-cache BT + arcade)
-   - Tag `v1.0.0` (full dual-target HAL + CS43131 anti-pop sequencer + real audio)
-2. **Docker / Cross-Compile Check:**
-   - Create Dockerfile with MIPS32 cross-toolchain (`mipsel-linux-gnu-gcc`) to produce device binary for Snowsky DISC.
-3. **Interactive Documentation:**
-   - Ensure `README.md` and `assets/nordic/fjall-design-system.html` reflect the full 38 screens and real playback capabilities.

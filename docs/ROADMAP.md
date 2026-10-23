@@ -31,11 +31,12 @@ make sim
   - `S`: Save a live PNG screenshot of the current window to `/tmp/dialos_live.png`
 
 ### 3. Mandatory Pre-Commit Verification Loop (`make test`)
-Before any C code is committed, `make test` MUST pass all four gates under `AddressSanitizer` + `UndefinedBehaviorSanitizer`:
+Before any C code is committed, `make test` MUST pass all automated gates under `AddressSanitizer` + `UndefinedBehaviorSanitizer`:
 1. **`./build/test_polar_gestures`**: Polar math (`0°–359°`) and Gesture FSM unit + 1,000-step fuzz suite.
 2. **`./build/test_draw_primitives`**: 2D AA primitives, all 70 Fjäll vector icons, `.train` marquee, and `<= 24.0 MB` RAM budget check.
-3. **`./build/test_screens_*`**: Headless render & locked UX pixel-invariant verification across Night and Day modes.
-4. **`./build/test_ui_interaction`**: End-to-end interactive UI simulation driving real touch/drag/tap/hold sequences into the live app controller (`dial_app_t`) and verifying that user interactions mutate both app state and rendered framebuffer pixels.
+3. **`./build/test_screens_v030`, `v040`, `v050`**: Headless render & locked UX pixel-invariant verification across all 38 master screens in Night and Day modes.
+4. **`./build/test_bt_cache`, `test_dac_relay`, `test_hal_disc`, `pack_disc_fw`**: Fast-Cache Bluetooth (`< 400 ms` Direct Page), CS43131 `8ms/12ms/8ms` anti-pop relay sequencer, Snowsky DISC RGB565 `FBIOPAN_DISPLAY` HAL, and CRC32-verified `.fw` firmware package check.
+5. **`./build/test_ui_interaction`**: End-to-end interactive UI simulation driving real touch/drag/tap/hold sequences into the live app controller (`dial_app_t`) and verifying that user interactions mutate both app state and rendered framebuffer pixels.
 
 ---
 
@@ -46,9 +47,9 @@ Before any C code is committed, `make test` MUST pass all four gates under `Addr
 | **`v0.1.0`** | **Done** | **Fjäll Design System & Architecture Foundation** | 26-slide interactive spec (`38` screens), `70` custom vector icons, C/JSON tokens, hardware SRS, workspace rules & skills, GitHub Pages showcase. |
 | **`v0.2.0`** | **Done** | **Core C Engine, Dual-HAL & Test Harness** | `Makefile`, headless PNG snapshot runner, macOS SDL2 simulator HAL, polar math & gesture FSM (`src/core/`), 2D anti-aliased circular renderer + 70-icon rasterizer (`src/ui/`), and unit test suite (`tests/`). |
 | **`v0.3.0`** | **Done** | **Core System, Home & Now Playing (`SYS`, `LCK`, `HOM`, `CC`, `NP`)** | `SYS-00`, `LCK-01..02` (full-bleed lock), `HOM-01..03`, `CC-01..02` (`3×2` icon-only pucks), and `NP-01..05` (full-bleed spinning vinyl, `r=38px` `0°–359°` inner seek ring, `NP-02` floating metadata + 4-puck bottom arc, `NP-05` right-arc Volume HUD). |
-| **`v0.4.0`** | **Next** | **Music Library & Browse Files (`LIB`, `FIL`)** | `LIB-01..04` (`Favorites` → `Playlists` → `Artists` → `Albums` → `Genres`, `LIB-02` cover arc with swipe + rim scrub, `LIB-03` animated EQ bars) and `FIL-01..04` (metadata tag + filename editor, recursive folder move/delete + `600 ms` hold confirm). |
-| **`v0.5.0`** | Planned | **Modes, Settings, Fast-Cache BT & Arcade (`MOD`, `SET`, `GAM`, `OVL`)** | `MOD-00..06` (`.train` marquee), `SET-01..07` (CS43131 filters, 10-band PEQ, `< 400 ms` Fast-Cache Bluetooth `dial_bt_peer_cache_t` + `LDAC 990` → `SBC` ladder), `GAM-01..04` (Dial Pong, 2048 Wheel, Boomshine), and `OVL-01..04`. |
-| **`v1.0.0`** | Planned | **Snowsky DISC Hardware Target (`hal_disc.c`) & `.fw` Packaging** | Ingenic X2000 MIPS32 cross-compile, `/dev/fb0` DMA double-buffering, `/dev/input/event*`, `/player` & `/ui` POSIX mqueues (verified against `b0hemia/diskos`), CS43131 anti-pop relay sequencing, and flashable `.fw` update generator. |
+| **`v0.4.0`** | **Done** | **Music Library & Browse Files (`LIB`, `FIL`)** | `LIB-01..04` (`Favorites` → `Playlists` → `Artists` → `Albums` → `Genres`, `LIB-02` cover arc with swipe + rim scrub, `LIB-03` animated EQ bars) and `FIL-01..04` (metadata tag + filename editor, recursive folder move/delete + `600 ms` hold confirm). |
+| **`v0.5.0`** | **Done** | **Modes, Settings, Fast-Cache BT & Arcade (`MOD`, `SET`, `GAM`, `OVL`)** | `MOD-00..06` (`.train` marquee), `SET-01..07` (CS43131 filters, 10-band PEQ, `< 400 ms` Fast-Cache Bluetooth `dial_bt_peer_cache_t` + `LDAC 990` → `SBC` ladder), `GAM-01..04` (Dial Pong, 2048 Wheel, Boomshine), and `OVL-01..04`. |
+| **`v1.0.0`** | **Done** | **Snowsky DISC Hardware Target (`hal_disc.c`) & `.fw` Packaging** | Ingenic X2000 MIPS32 cross-compile (`Dockerfile`), `/dev/fb0` `FBIOPAN_DISPLAY` double-buffering, `/dev/input/event*`, `/player` & `/ui` POSIX mqueues, CS43131 anti-pop relay sequencing, real AudioToolbox streaming (`hal_media.c`), and CRC32-verified `.fw` update generator (`tools/pack_disc_fw.c`). |
 
 ---
 
