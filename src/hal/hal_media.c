@@ -757,9 +757,19 @@ bool dial_media_browse_dir(const char *dir_path) {
         char fpath[512];
         snprintf(fpath, sizeof(fpath), "%s/%s", g_cur_dir_path, de->d_name);
         struct stat st;
-        if (stat(fpath, &st) != 0) continue;
-
-        bool is_d = S_ISDIR(st.st_mode);
+        bool stat_ok = (stat(fpath, &st) == 0);
+        bool is_d = stat_ok && S_ISDIR(st.st_mode);
+#if defined(DT_DIR)
+        if (!stat_ok && de->d_type == DT_DIR) {
+            is_d = true;
+            stat_ok = true;
+            memset(&st, 0, sizeof(st));
+        } else if (!stat_ok && de->d_type == DT_REG) {
+            stat_ok = true;
+            memset(&st, 0, sizeof(st));
+        }
+#endif
+        if (!stat_ok) continue;
         if (!is_d && !is_audio_file(de->d_name)) continue;
 
         dial_fs_entry_t *ent = &g_fs_entries[g_fs_entry_count++];

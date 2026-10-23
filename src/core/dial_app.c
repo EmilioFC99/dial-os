@@ -1678,7 +1678,7 @@ static void dispatch_gesture_event(dial_app_t *app, const dial_gesture_event_t *
 
             if (app->files_action_sheet_open) {
                 if (ev->type == DIAL_EVENT_TAP) {
-                    if (ev->y >= 216.0f && ev->y <= 290.0f) {
+                    if (ev->y >= 190.0f && ev->y <= 325.0f) {
                         if (ev->x < 180.0f) {
                             app->files_action_sheet_open = false;
                             activate_files_entry(app, app->files_focus_idx);
@@ -1701,12 +1701,31 @@ static void dispatch_gesture_event(dial_app_t *app, const dial_gesture_event_t *
                 break;
             }
 
+            size_t win_count = (total < 4) ? total : 4;
+            size_t win_start = 0;
+            if (total > 4) {
+                if (app->files_focus_idx <= 1) win_start = 0;
+                else if (app->files_focus_idx + 2 >= total) win_start = total - 4;
+                else win_start = app->files_focus_idx - 1;
+            }
+
             if (ev->type == DIAL_EVENT_RIM_DETENT && total > 0 && !is_empty_folder) {
                 int next = (int)app->files_focus_idx + (int)ev->detent_steps;
                 if (next < 0) next = 0;
                 if (next >= (int)total) next = (int)total - 1;
                 app->files_focus_idx = (size_t)next;
             } else if (ev->type == DIAL_EVENT_HOLD_450MS && total > 0 && !is_empty_folder) {
+                int cur_y = 66;
+                for (size_t i = 0; i < win_count; ++i) {
+                    size_t idx = win_start + i;
+                    int rh = (idx == app->files_focus_idx) ? 52 : 44;
+                    if (ev->y >= (float)(cur_y - 4) && ev->y <= (float)(cur_y + rh + DIAL_SPACE_2) &&
+                        ev->x >= 18.0f && ev->x <= 342.0f) {
+                        app->files_focus_idx = idx;
+                        break;
+                    }
+                    cur_y += rh + DIAL_SPACE_2;
+                }
                 const dial_fs_entry_t *ent = dial_media_get_fs_entry(app->files_focus_idx);
                 if (ent && strcmp(ent->name, "..") != 0) {
                     app->files_action_sheet_open = true;
@@ -1717,24 +1736,24 @@ static void dispatch_gesture_event(dial_app_t *app, const dial_gesture_event_t *
                     break;
                 }
                 /* Hit-test the 4 visible rows in the Fisheye Rim List (top_y = 66) */
-                size_t win_count = (total < 4) ? total : 4;
-                size_t win_start = 0;
-                if (total > 4) {
-                    if (app->files_focus_idx <= 1) win_start = 0;
-                    else if (app->files_focus_idx + 2 >= total) win_start = total - 4;
-                    else win_start = app->files_focus_idx - 1;
-                }
+                bool matched_row = false;
                 int cur_y = 66;
                 for (size_t i = 0; i < win_count; ++i) {
                     size_t idx = win_start + i;
                     int rh = (idx == app->files_focus_idx) ? 52 : 44;
-                    if (ev->y >= (float)cur_y && ev->y <= (float)(cur_y + rh) &&
-                        ev->x >= 38.0f && ev->x <= 322.0f) {
+                    if (ev->y >= (float)(cur_y - 6) && ev->y <= (float)(cur_y + rh + DIAL_SPACE_2) &&
+                        ev->x >= 18.0f && ev->x <= 342.0f) {
                         app->files_focus_idx = idx;
                         activate_files_entry(app, idx);
+                        matched_row = true;
                         break;
                     }
                     cur_y += rh + DIAL_SPACE_2;
+                }
+                /* If fewer than 4 rows are visible (e.g. 1 folder on SD card) and user taps center stage, open focused row */
+                if (!matched_row && total > 0 && win_count < 4 &&
+                    ev->y >= 54.0f && ev->y <= 300.0f && ev->x >= 46.0f && ev->x <= 330.0f) {
+                    activate_files_entry(app, app->files_focus_idx);
                 }
             }
             break;

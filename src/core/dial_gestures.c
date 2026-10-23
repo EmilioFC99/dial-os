@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define DIAL_DRIFT_TAP_MAX_PX     8.0f
+#define DIAL_DRIFT_TAP_MAX_PX    20.0f
 #define DIAL_SWIPE_MIN_PX        22.0f
 #define DIAL_RIM_LOCK_MIN_DEG     5.0f
 #define DIAL_RING_SEEK_LOCK_DEG   3.0f
@@ -184,8 +184,15 @@ dial_gesture_event_t dial_gesture_fsm_step(dial_gesture_fsm_t *fsm,
         const float dx_total = touch->x - fsm->start_x;
         const float dy_total = touch->y - fsm->start_y;
         const float drift    = sqrtf(dx_total * dx_total + dy_total * dy_total);
+        const bool  is_tap_state =
+            (fsm->state == DIAL_GESTURE_EVALUATING) ||
+            (fsm->state == DIAL_GESTURE_RIM_ROTARY &&
+             fabsf(dial_angle_diff(fsm->start_deg, deg)) < DIAL_ROTARY_STEP_DEG);
 
-        if (fsm->state == DIAL_GESTURE_EVALUATING && drift < DIAL_DRIFT_TAP_MAX_PX) {
+        if (is_tap_state && drift < DIAL_DRIFT_TAP_MAX_PX) {
+            ev.x = fsm->start_x;
+            ev.y = fsm->start_y;
+            dial_xy_to_polar(ev.x, ev.y, &ev.r, &ev.deg);
             if (fsm->is_now_playing_screen) {
                 /* Check if this is the 2nd tap within DIAL_DOUBLE_TAP_MAX_MS (260 ms) */
                 if (fsm->pending_single_tap &&
@@ -198,8 +205,8 @@ dial_gesture_event_t dial_gesture_fsm_step(dial_gesture_fsm_t *fsm,
                     /* First tap: arm 260ms disambiguation window */
                     fsm->pending_single_tap = true;
                     fsm->first_tap_up_ts_ms = touch->timestamp_ms;
-                    fsm->first_tap_x        = touch->x;
-                    fsm->first_tap_y        = touch->y;
+                    fsm->first_tap_x        = fsm->start_x;
+                    fsm->first_tap_y        = fsm->start_y;
                 }
             } else {
                 ev.type = DIAL_EVENT_TAP;
