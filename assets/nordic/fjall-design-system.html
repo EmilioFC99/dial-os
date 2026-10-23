@@ -224,6 +224,202 @@
   .eqbars i:nth-child(1){height:6px;animation-delay:-.2s}.eqbars i:nth-child(2){height:11px;animation-delay:-.5s}.eqbars i:nth-child(3){height:8px;animation-delay:-.8s}.eqbars i:nth-child(4){height:10px;animation-delay:-.35s}
   @keyframes eqb { 0%,100% { transform: scaleY(.45); } 50% { transform: scaleY(1); } transform-origin: bottom; }
 
+  /* ── SYS-00 · Nordic Dawn & Mountain Draw-In Boot Animation ── */
+  .boot-seq { cursor: pointer; user-select: none; }
+  .boot-dawn {
+    opacity: 0;
+    transform: translateY(18px) scale(.88);
+    transform-origin: 180px 250px;
+    animation: bootDawn 1.35s var(--ease-settle) .08s forwards;
+  }
+  .boot-stars circle {
+    opacity: 0;
+    animation: bootStar 1.4s var(--ease-glide) forwards;
+  }
+  .boot-stars circle:nth-child(1) { animation-delay: .06s; }
+  .boot-stars circle:nth-child(2) { animation-delay: .14s; }
+  .boot-stars circle:nth-child(3) { animation-delay: .22s; }
+  .boot-stars circle:nth-child(4) { animation-delay: .10s; }
+  .boot-stars circle:nth-child(5) { animation-delay: .18s; }
+  .boot-emblem-wrap {
+    animation: bootEmblemBreathe 3.4s var(--ease-glide) 1.45s infinite;
+  }
+  .boot-ring-stroke {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: bootStrokeDraw .68s var(--ease-settle) .05s forwards;
+  }
+  .boot-peak-stroke {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: bootStrokeDraw .64s var(--ease-settle) .26s forwards;
+  }
+  .boot-peak-fill {
+    opacity: 0;
+    animation: bootPeakFill .6s var(--ease-settle) .54s forwards;
+  }
+  .boot-sun {
+    opacity: 0;
+    transform: translateY(5px) scale(.6);
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: bootSunRise .56s var(--ease-settle) .46s forwards;
+  }
+  .boot-h-back {
+    opacity: 0;
+    transform: translateY(42px);
+    animation: bootHorizonRise .72s var(--ease-settle) .14s forwards;
+  }
+  .boot-h-front {
+    opacity: 0;
+    transform: translateY(58px);
+    animation: bootHorizonRise .74s var(--ease-settle) .26s forwards;
+  }
+  .boot-h-pines {
+    opacity: 0;
+    transform: translateY(68px);
+    animation: bootHorizonRise .72s var(--ease-settle) .38s forwards;
+  }
+  .boot-word {
+    opacity: 0;
+    transform: translateY(8px);
+    letter-spacing: .46em;
+    animation: bootWordIn .66s var(--ease-settle) .54s forwards;
+  }
+  .boot-rim-sweep {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: bootRimSweep 1.18s var(--ease-glide) .14s forwards;
+  }
+  .boot-rim-knob {
+    opacity: 0;
+    transform-origin: 180px 180px;
+    animation: bootRimKnob 1.18s var(--ease-glide) .14s forwards;
+  }
+  .boot-hint {
+    opacity: 0;
+    animation: bootFadeIn .5s var(--ease-settle) 1.15s forwards;
+  }
+  /* Continuous loop mode (default so animation is always live) */
+  .boot-seq.loop .boot-dawn       { animation: bootDawnLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-stars circle { animation: bootStarLoop 3.6s var(--ease-glide) infinite; }
+  .boot-seq.loop .boot-ring-stroke{ animation: bootRingLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-peak-stroke{ animation: bootPeakLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-peak-fill  { animation: bootFillLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-sun        { animation: bootSunLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-h-back     { animation: bootHBackLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-h-front    { animation: bootHFrontLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-h-pines    { animation: bootHPinesLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-word       { animation: bootWordLoop 3.6s var(--ease-settle) infinite; }
+  .boot-seq.loop .boot-rim-sweep  { animation: bootRimSweepLoop 3.6s var(--ease-glide) infinite; }
+  .boot-seq.loop .boot-rim-knob   { animation: bootRimKnobLoop 3.6s var(--ease-glide) infinite; }
+  .boot-seq.loop .boot-hint       { animation: bootHintLoop 3.6s var(--ease-settle) infinite; }
+
+  @keyframes bootStrokeDraw { to { stroke-dashoffset: 0; } }
+  @keyframes bootPeakFill { to { opacity: .18; } }
+  @keyframes bootSunRise { to { opacity: .92; transform: translateY(0) scale(1); } }
+  @keyframes bootHorizonRise { to { opacity: 1; transform: translateY(0); } }
+  @keyframes bootDawn {
+    0%   { opacity: 0; transform: translateY(18px) scale(.88); }
+    55%  { opacity: 1; transform: translateY(0) scale(1.02); }
+    100% { opacity: .78; transform: translateY(0) scale(1); }
+  }
+  @keyframes bootStar {
+    0%   { opacity: 0; }
+    35%  { opacity: .75; }
+    100% { opacity: .35; }
+  }
+  @keyframes bootWordIn {
+    0%   { opacity: 0; transform: translateY(8px); letter-spacing: .46em; }
+    100% { opacity: 1; transform: translateY(0); letter-spacing: .3em; }
+  }
+  @keyframes bootRimSweep {
+    0%   { stroke-dashoffset: 100; opacity: .95; }
+    78%  { stroke-dashoffset: 0; opacity: .95; }
+    100% { stroke-dashoffset: 0; opacity: .28; }
+  }
+  @keyframes bootRimKnob {
+    0%   { opacity: 0; transform: rotate(0deg); }
+    10%  { opacity: 1; }
+    78%  { opacity: 1; transform: rotate(360deg); }
+    100% { opacity: 0; transform: rotate(360deg); }
+  }
+  @keyframes bootFadeIn { to { opacity: .85; } }
+  @keyframes bootEmblemBreathe {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(.965); opacity: .72; }
+  }
+  /* 3.6s Loop Keyframes (draw-in -> hold -> clean reset) */
+  @keyframes bootRingLoop {
+    0%, 2%   { stroke-dashoffset: 100; opacity: 1; }
+    22%, 86% { stroke-dashoffset: 0; opacity: 1; }
+    96%, 100%{ stroke-dashoffset: 0; opacity: 0; }
+  }
+  @keyframes bootPeakLoop {
+    0%, 8%   { stroke-dashoffset: 100; opacity: 1; }
+    28%, 86% { stroke-dashoffset: 0; opacity: 1; }
+    96%, 100%{ stroke-dashoffset: 0; opacity: 0; }
+  }
+  @keyframes bootFillLoop {
+    0%, 15%  { opacity: 0; }
+    34%, 86% { opacity: .18; }
+    96%, 100%{ opacity: 0; }
+  }
+  @keyframes bootSunLoop {
+    0%, 13%  { opacity: 0; transform: translateY(5px) scale(.6); }
+    30%, 86% { opacity: .92; transform: translateY(0) scale(1); }
+    96%, 100%{ opacity: 0; transform: translateY(-2px) scale(.8); }
+  }
+  @keyframes bootDawnLoop {
+    0%, 3%   { opacity: 0; transform: translateY(18px) scale(.88); }
+    25%      { opacity: 1; transform: translateY(0) scale(1.02); }
+    45%, 86% { opacity: .78; transform: translateY(0) scale(1); }
+    96%, 100%{ opacity: 0; transform: translateY(10px) scale(.92); }
+  }
+  @keyframes bootStarLoop {
+    0%, 3%   { opacity: 0; }
+    20%      { opacity: .78; }
+    50%, 86% { opacity: .35; }
+    96%, 100%{ opacity: 0; }
+  }
+  @keyframes bootHBackLoop {
+    0%, 4%   { opacity: 0; transform: translateY(42px); }
+    26%, 86% { opacity: 1; transform: translateY(0); }
+    96%, 100%{ opacity: 0; transform: translateY(24px); }
+  }
+  @keyframes bootHFrontLoop {
+    0%, 8%   { opacity: 0; transform: translateY(58px); }
+    30%, 86% { opacity: 1; transform: translateY(0); }
+    96%, 100%{ opacity: 0; transform: translateY(34px); }
+  }
+  @keyframes bootHPinesLoop {
+    0%, 11%  { opacity: 0; transform: translateY(68px); }
+    34%, 86% { opacity: 1; transform: translateY(0); }
+    96%, 100%{ opacity: 0; transform: translateY(42px); }
+  }
+  @keyframes bootWordLoop {
+    0%, 15%  { opacity: 0; transform: translateY(8px); letter-spacing: .46em; }
+    35%, 86% { opacity: 1; transform: translateY(0); letter-spacing: .3em; }
+    96%, 100%{ opacity: 0; transform: translateY(-3px); letter-spacing: .3em; }
+  }
+  @keyframes bootRimSweepLoop {
+    0%, 4%   { stroke-dashoffset: 100; opacity: .95; }
+    36%      { stroke-dashoffset: 0; opacity: .95; }
+    46%, 86% { stroke-dashoffset: 0; opacity: .28; }
+    96%, 100%{ stroke-dashoffset: 0; opacity: 0; }
+  }
+  @keyframes bootRimKnobLoop {
+    0%, 4%   { opacity: 0; transform: rotate(0deg); }
+    8%       { opacity: 1; }
+    36%      { opacity: 1; transform: rotate(360deg); }
+    44%, 100%{ opacity: 0; transform: rotate(360deg); }
+  }
+  @keyframes bootHintLoop {
+    0%, 32%  { opacity: 0; }
+    45%, 86% { opacity: .85; }
+    96%, 100%{ opacity: 0; }
+  }
+
   /* Static diagrams */
   .swatch { border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: var(--s1); }
   .swatch .chipc { height: 92px; position: relative; }
@@ -459,6 +655,11 @@
 </section>
 
 <!-- SCREEN SLIDES -->
+<section class="slide" id="s-boot" data-toc="Boot animation" data-grp="Screens">
+  <div class="slide-head"><div><div class="kicker">15 · Boot Choreography · SYS-00</div><h2>Nordic Dawn &amp; Mountain Draw-In</h2>
+  <p class="lead">While the Linux audio daemon and microSD indexer initialize (~1.4 s), DialOS plays a four-stage procedural vector sequence: a <b>Cloudberry</b> dawn glow blooms behind the horizon, the <b>Fjäll</b> emblem traces its outer circle and twin peaks in <b>Moss</b>, the three-layer mountain horizon rises with parallax, and a 360° rim arc sweeps clockwise around the bezel.</p></div><div class="slide-no">SYS-00</div></div>
+  <div id="bootShowcase"></div>
+</section>
 <section class="slide" id="s-core" data-toc="System & Home" data-grp="Screens">
   <div class="slide-head"><div><div class="kicker">15 · Screens</div><h2>Lock, home &amp; system hub</h2>
   <p class="lead">The entry points. The Home carousel shows one app at a time in the core. The thumb rotates the rim to switch apps and a tap opens the app. Pull down from the top edge, from anywhere, to open the Control Center.</p></div><div class="slide-no">15</div></div>
@@ -917,6 +1118,74 @@ function horizon() {
   </svg>`;
 }
 
+if (window.__bootLoop === undefined) window.__bootLoop = true;
+
+function bootScreen() {
+  const pines = [[40,82],[58,78],[300,88],[318,84],[228,70]]
+    .map(([x,y]) => `<path d="M${x} ${y-14} ${x+5} ${y-4}h-3l4 6h-12l4-6h-3z" fill="var(--s3)"/>`).join("");
+  return `<div class="abs fill boot-seq ${window.__bootLoop ? "loop" : ""}" onclick="window.replayBoot(this)" title="Click to replay boot animation">
+    <!-- Stage 1: Nordic dawn horizon glow & polar twilight stars -->
+    <div class="abs fill boot-dawn" style="pointer-events:none; background:
+      radial-gradient(155px 108px at 50% 68%, color-mix(in srgb, var(--berry) 24%, transparent) 0%, color-mix(in srgb, var(--moss) 15%, transparent) 52%, transparent 100%)"></div>
+    <svg class="abs fill boot-stars" width="360" height="360" viewBox="0 0 360 360" style="pointer-events:none">
+      <circle cx="96" cy="78" r="1.2" fill="var(--birch)"/>
+      <circle cx="138" cy="52" r="1.5" fill="var(--t2)"/>
+      <circle cx="228" cy="58" r="1.15" fill="var(--birch)"/>
+      <circle cx="264" cy="86" r="1.4" fill="var(--moss)"/>
+      <circle cx="182" cy="42" r="1.05" fill="var(--t2)"/>
+    </svg>
+    <!-- Stage 3: 360° Rim Boot Progress Sweep (r = 168 px) -->
+    <svg class="abs fill" width="360" height="360" viewBox="0 0 360 360" style="pointer-events:none">
+      <circle cx="180" cy="180" r="168" fill="none" stroke="var(--s3)" stroke-width="2.5" opacity=".42"/>
+      <circle class="boot-rim-sweep" cx="180" cy="180" r="168" pathLength="100" transform="rotate(-90 180 180)" fill="none" stroke="var(--moss)" stroke-width="3.5" stroke-linecap="round"/>
+      <g class="boot-rim-knob"><circle cx="180" cy="12" r="5.5" fill="var(--moss)" stroke="var(--bg)" stroke-width="2"/></g>
+    </svg>
+    <!-- Stage 1 & 2: Fjäll Core Emblem Stroke Draw-In + Dawn Sun + Wordmark -->
+    <div class="abs ctr" style="top:114px">
+      <div class="boot-emblem-wrap">
+        <svg width="78" height="78" viewBox="0 0 24 24" aria-hidden="true">
+          <defs><clipPath id="bootFjallClip"><circle cx="12" cy="12" r="9.5"/></clipPath></defs>
+          <path class="boot-peak-fill" clip-path="url(#bootFjallClip)" d="M4.8 16.5 9.4 10l3.1 4.2 2.2-2.7 4.5 5V22H4.8z" fill="var(--moss)"/>
+          <circle class="boot-sun" cx="15.2" cy="8.2" r="1.35" fill="var(--berry)"/>
+          <path class="boot-ring-stroke" pathLength="100" d="M12 2.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19z" fill="none" stroke="var(--moss)" stroke-width="1.45" stroke-linecap="round"/>
+          <path class="boot-peak-stroke" pathLength="100" d="M4.8 16.5 9.4 10l3.1 4.2 2.2-2.7 4.5 5" fill="none" stroke="var(--moss)" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="t-over boot-word" style="margin-top:16px; color:var(--t1)">DialOS</div>
+    </div>
+    <!-- Stage 2: 3-Layer Parallax Mountain Horizon -->
+    <svg class="abs" style="left:0; bottom:0; pointer-events:none" width="360" height="130" viewBox="0 0 360 130">
+      <g class="boot-h-back">
+        <path d="M0 70 54 34 92 58 140 18 196 62 236 40 300 76 360 50V130H0z" fill="var(--s1)"/>
+        <path d="M140 18 152 28 146 30 160 40 148 36z M54 34 62 40 58 42z" fill="var(--s3)" opacity=".6"/>
+      </g>
+      <g class="boot-h-front">
+        <path d="M0 96 70 70 130 88 210 64 290 92 360 78V130H0z" fill="var(--s2)"/>
+      </g>
+      <g class="boot-h-pines">${pines}</g>
+    </svg>
+    <div class="abs hint boot-hint">${ic("rim", 12, 2)}Tap screen to replay</div>
+  </div>`;
+}
+
+window.replayBoot = function(targetEl) {
+  const nodes = targetEl ? [targetEl] : document.querySelectorAll(".boot-seq");
+  nodes.forEach(node => {
+    const parent = node.parentElement;
+    if (!parent) return;
+    const clone = node.cloneNode(true);
+    parent.replaceChild(clone, node);
+  });
+};
+
+window.toggleBootLoop = function(btn, e) {
+  if (e) e.stopPropagation();
+  window.__bootLoop = !window.__bootLoop;
+  document.querySelectorAll(".boot-seq").forEach(n => n.classList.toggle("loop", window.__bootLoop));
+  document.querySelectorAll(".boot-loop-btn").forEach(b => b.classList.toggle("on", window.__bootLoop));
+  window.replayBoot();
+};
+
 function carouselScreen(focus) {
   const a = APPS[focus], prev = APPS[(focus + 5) % 6], next = APPS[(focus + 1) % 6], p2 = APPS[(focus + 4) % 6], n2 = APPS[(focus + 2) % 6];
   const pos = (deg, r, size, app, op) => { const [x, y] = pt(deg, r); return `<div class="abs" style="left:${x - size / 2}px; top:${y - size / 2 - 40}px; opacity:${op}">${pebble(app, size)}</div>`; };
@@ -933,8 +1202,7 @@ function carouselScreen(focus) {
 
 const SCREENS = [
   /* ── CORE ── */
-  { g: "core", id: "SYS-00", t: "Boot", d: "Fjäll mark breathes for at most 1.2 s while the player daemon starts.", fn: () =>
-    `<div class="abs ctr" style="top:130px"><div class="breathe cm">${ic("fjall", 72, 1.4)}</div><div class="t-over" style="margin-top:18px; letter-spacing:.3em">DialOS</div></div>${horizon()}` },
+  { g: "core", id: "SYS-00", t: "Boot · Nordic Dawn", d: `1.4 s sequence: Fjäll emblem stroke draw-in + Cloudberry dawn glow, 3-layer parallax mountain rise, and 360° Moss rim sweep.<span style="display:flex;justify-content:center;gap:6px;margin-top:8px"><button class="pill sm on" style="cursor:pointer" onclick="window.replayBoot()">↻ Replay</button><button class="pill sm boot-loop-btn ${window.__bootLoop ? "on" : ""}" style="cursor:pointer" onclick="window.toggleBootLoop(this, event)">∞ Loop</button></span>`, fn: bootScreen },
   { g: "core", id: "LCK-01", t: "Lock · idle", d: "Airy 64/300 clock above a quiet mountain horizon. Swipe up anywhere to unlock.", fn: () =>
     `<div class="abs ctr" style="top:36px; flex-direction:row; justify-content:center; gap:6px; color:var(--t2); font-size:12px; font-weight:600">${ic("battery", 16)} 82%</div>
      <div class="abs ctr" style="top:86px"><div class="t-over">Tuesday · 22 Oct</div><div class="t-display num" style="margin-top:12px">21:45</div><div class="t-sub" style="margin-top:12px">Nothing playing</div></div>
@@ -1381,15 +1649,105 @@ function renderChecklist() {
   ];
   $("#checklist").innerHTML = L.map(([t, items]) => `<div class="card"><div class="t-cap" style="margin-bottom:12px; color:var(--moss)">${t}</div>${items.map(i => `<div style="display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; color:var(--t2)"><span style="width:16px; height:16px; border-radius:5px; border:1.5px solid var(--t3); flex:none; margin-top:1px"></span>${i}</div>`).join("")}</div>`).join("");
 }
+function bootStageSnapshot(stage) {
+  const pines = [[40,82],[58,78],[300,88],[318,84],[228,70]]
+    .map(([x,y]) => `<path d="M${x} ${y-14} ${x+5} ${y-4}h-3l4 6h-12l4-6h-3z" fill="var(--s3)"/>`).join("");
+  const ringDash = [58, 15, 0, 0][stage];
+  const peakDash = [92, 28, 0, 0][stage];
+  const fillOp   = [0, .08, .18, .18][stage];
+  const sunOp    = [0, .65, .92, .92][stage];
+  const hBackY   = [32, 14, 0, 0][stage];
+  const hFrontY  = [48, 22, 0, 0][stage];
+  const hPinesY  = [60, 34, 6, 0][stage];
+  const wordOp   = [0, .35, .9, 1][stage];
+  const rimPct   = [.22, .55, .88, 1][stage];
+  const rimOp    = [.95, .95, .95, .28][stage];
+  return `<div style="width:144px; height:144px; position:relative; border-radius:50%; overflow:hidden; box-shadow:0 0 0 4px var(--bezel)">
+    <div class="dev" style="transform:scale(.4); transform-origin:top left">
+      <div class="abs fill" style="background:radial-gradient(155px 108px at 50% 68%, color-mix(in srgb, var(--berry) 24%, transparent) 0%, color-mix(in srgb, var(--moss) 15%, transparent) 52%, transparent 100%); opacity:${[.45, .95, .88, .78][stage]}"></div>
+      <svg class="abs fill" width="360" height="360" viewBox="0 0 360 360">
+        <circle cx="180" cy="180" r="168" fill="none" stroke="var(--s3)" stroke-width="2.5" opacity=".42"/>
+        <path d="${arcPath(0, 359.9 * rimPct, 168)}" fill="none" stroke="var(--moss)" stroke-width="4" stroke-linecap="round" opacity="${rimOp}"/>
+        ${stage < 3 ? `<circle cx="${pt(360 * rimPct, 168)[0]}" cy="${pt(360 * rimPct, 168)[1]}" r="6" fill="var(--moss)" stroke="var(--bg)" stroke-width="2"/>` : ""}
+      </svg>
+      <div class="abs ctr" style="top:114px">
+        <svg width="78" height="78" viewBox="0 0 24 24">
+          <defs><clipPath id="bfClip${stage}"><circle cx="12" cy="12" r="9.5"/></clipPath></defs>
+          <path clip-path="url(#bfClip${stage})" d="M4.8 16.5 9.4 10l3.1 4.2 2.2-2.7 4.5 5V22H4.8z" fill="var(--moss)" opacity="${fillOp}"/>
+          <circle cx="15.2" cy="8.2" r="1.35" fill="var(--berry)" opacity="${sunOp}"/>
+          <path pathLength="100" stroke-dasharray="100" stroke-dashoffset="${ringDash}" d="M12 2.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19z" fill="none" stroke="var(--moss)" stroke-width="1.5" stroke-linecap="round"/>
+          <path pathLength="100" stroke-dasharray="100" stroke-dashoffset="${peakDash}" d="M4.8 16.5 9.4 10l3.1 4.2 2.2-2.7 4.5 5" fill="none" stroke="var(--moss)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="t-over" style="margin-top:16px; color:var(--t1); opacity:${wordOp}; letter-spacing:.3em">DialOS</div>
+      </div>
+      <svg class="abs" style="left:0; bottom:0" width="360" height="130" viewBox="0 0 360 130">
+        <g transform="translate(0,${hBackY})"><path d="M0 70 54 34 92 58 140 18 196 62 236 40 300 76 360 50V130H0z" fill="var(--s1)"/></g>
+        <g transform="translate(0,${hFrontY})"><path d="M0 96 70 70 130 88 210 64 290 92 360 78V130H0z" fill="var(--s2)"/></g>
+        <g transform="translate(0,${hPinesY})">${pines}</g>
+      </svg>
+    </div>
+  </div>`;
+}
+
+function renderBootSlide() {
+  const el = $("#bootShowcase");
+  if (!el) return;
+  const stages = [
+    ["01 · Dawn & Ring", "0.05 – 0.68 s", "settle · 680 ms", "Cloudberry dawn bloom + Fjäll outer circle stroke draw-in (12 o'clock clockwise)"],
+    ["02 · Twin Peaks & Sun", "0.26 – 0.90 s", "settle · 640 ms", "Twin mountain peaks trace left-to-right; Cloudberry sun rises over the valley"],
+    ["03 · Parallax Horizon", "0.14 – 1.04 s", "settle · 720 ms", "3-layer mountain ridges (s1, s2) and 5 Nordic pines (s3) rise with vertical parallax"],
+    ["04 · 360° Rim & Settle", "0.14 – 1.32 s", "glide · 1180 ms", "Moss rim arc (r = 168 px) sweeps 360° with knob; DIALOS wordmark settles into breathe"]
+  ];
+  el.innerHTML = `<div class="grid" style="grid-template-columns: auto 1fr; gap: 44px; align-items: start">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:16px">
+      ${dev(bootScreen())}
+      <div style="display:flex; gap:8px; align-items:center">
+        <button class="pill on" style="cursor:pointer" onclick="window.replayBoot()">↻ Replay 1.4 s boot</button>
+        <button class="pill boot-loop-btn ${window.__bootLoop ? "on" : ""}" style="cursor:pointer" onclick="window.toggleBootLoop(this, event)">∞ Loop active</button>
+      </div>
+      <p class="note" style="text-align:center; max-width:320px; font-size:12.5px">Click the circular screen or buttons above to restart from <code>t = 0.0 s</code>, or switch between <b>Polar Night</b> and <b>Birch Day</b> in the top bar.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:22px; min-width:0">
+      <div>
+        <h3 class="sec" style="margin-top:0">4-Stage Choreography Timeline (1.4 s total)</h3>
+        <table class="spec">
+          <tr><th>Stage</th><th>Window</th><th>Token curve</th><th>Visual &amp; C primitive mapping</th></tr>
+          ${stages.map(([s, w, c, d]) => `<tr><td>${s}</td><td class="mono">${w}</td><td class="mono">${c}</td><td>${d}</td></tr>`).join("")}
+        </table>
+      </div>
+      <div>
+        <h3 class="sec" style="margin-top:4px">Keyframe Storyboard (t = 0.25 s · 0.55 s · 0.95 s · 1.40 s)</h3>
+        <div class="grid g4" style="justify-items:center">
+          ${[["t = 0.25 s", "Ring & dawn bloom"], ["t = 0.55 s", "Peaks & sun rise"], ["t = 0.95 s", "Parallax horizon"], ["t = 1.40 s", "Rim complete · Ready"]].map(([t, l], i) => `
+            <div class="card" style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:16px 12px; width:100%">
+              ${bootStageSnapshot(i)}
+              <div class="mono cm" style="font-size:11.5px; font-weight:600">${t}</div>
+              <div class="c2" style="font-size:12px; text-align:center">${l}</div>
+            </div>`).join("")}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderScreens() {
   document.querySelectorAll(".screens[data-group]").forEach(el => {
     const g = el.dataset.group;
     el.innerHTML = SCREENS.filter(s => s.g === g).map(s => `<figure class="shot">${dev(s.fn(), el.classList.contains("tight") ? "scaled" : "")}
       <figcaption><span>${s.id}</span><b>${s.t}</b><p>${s.d}</p></figcaption></figure>`).join("");
   });
+  if (!window.__bootObs) {
+    window.__bootObs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) window.replayBoot(e.target.querySelector(".boot-seq")); });
+    }, { threshold: 0.2 });
+  }
+  ["s-boot", "s-core"].forEach(id => {
+    const sec = document.getElementById(id);
+    if (sec) window.__bootObs.observe(sec);
+  });
 }
 function renderCover() {
-  const pos = [[0, 30, 1, "NP-01"], [300, 0, .62, "HOM-01"], [330, 250, .58, "SET-02"]];
+  const pos = [[0, 30, 1, "NP-01"], [300, 0, .62, "HOM-01"], [330, 250, .58, "SYS-00"]];
   $("#coverDevices").innerHTML = pos.map(([x, y, s, id]) => `<div class="bezel" style="left:${x}px; top:${y}px; transform:scale(${s}); transform-origin:top left"><div class="dev">${SCREENS.find(q => q.id === id).fn()}</div></div>`).join("");
   $("#moodOffice").innerHTML = `<div style="position:absolute; inset:0; background:
      linear-gradient(180deg, transparent 58%, rgba(0,0,0,.05) 58%),
@@ -1416,7 +1774,7 @@ function renderAll() {
   $("#brandIcon").innerHTML = ic("fjall", 22);
   document.querySelectorAll("[data-ic]").forEach(e => e.innerHTML = ic(e.dataset.ic, +e.dataset.s || 16));
   renderPrinciples(); renderSwatches(); renderColorRules(); renderType(); renderGeometry(); renderSpace(); renderIcons(); renderAppIcons();
-  renderComponents(); renderStates(); renderMotion(); renderNav(); renderScreens(); renderRedlines(); renderA11y(); renderTokens(); renderChecklist(); renderCover();
+  renderComponents(); renderStates(); renderMotion(); renderNav(); renderBootSlide(); renderScreens(); renderRedlines(); renderA11y(); renderTokens(); renderChecklist(); renderCover();
 }
 
 /* boot */
