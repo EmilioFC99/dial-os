@@ -42,7 +42,11 @@ int main(int argc, char **argv) {
     }
 
     if (!headless) {
+#if defined(DIAL_TARGET_DISC)
+        const char *target_music = music_dir ? music_dir : "/tmp/sdcard";
+#else
         const char *target_music = music_dir ? music_dir : "/Users/emilio.flores/Music/Au5";
+#endif
         dial_media_scan_root(target_music);
     } else if (music_dir) {
         dial_media_scan_root(music_dir);
