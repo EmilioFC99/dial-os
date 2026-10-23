@@ -1,6 +1,6 @@
 # DialOS — FiiO Snowsky DISC Flash & Recovery Playbook (macOS)
 
-This playbook covers **first-time USB Mask-ROM installation**, **10-second microSD updates**, and **100% stock FiiO firmware recovery** on macOS.
+This playbook uses a **single CLI tool (`./dialos-mac`)** for first-time USB Mask-ROM installation, 10-second microSD updates, and 100% stock FiiO firmware recovery on macOS.
 
 ---
 
@@ -8,7 +8,7 @@ This playbook covers **first-time USB Mask-ROM installation**, **10-second micro
 
 1. **Ensure your Snowsky DISC is on Stock Firmware V2.57** (or V2.09 / V2.28 / V2.40).
    - The USB writer (`my_write6_dram.bin`) verifies the on-device kernel/recovery SHA-256 against the official FiiO catalogue before touching NAND.
-2. **Use a data-capable USB-C cable** plugged into the **USB / DATA** port on the Snowsky DISC (not the charge-only port, if applicable).
+2. **Use a data-capable USB-C cable** plugged into the **USB / DATA** port on the Snowsky DISC.
 3. **Battery**: Have at least **40% battery** on the Snowsky DISC so it stays powered during the ~18-minute NAND programming & readback verification pass.
 
 ---
@@ -18,17 +18,16 @@ This playbook covers **first-time USB Mask-ROM installation**, **10-second micro
 From the root of the repository (`/Users/emilio.flores/Documents/repos/dial-os`), run:
 
 ```bash
-make flash
+./dialos-mac flash
 ```
-*(or `./dialos-mac flash`)*
 
-### What happens when you run `make flash`:
-1. **Cross-compiles & packages automatically**:
-   - Compiles the static MIPS32r2 `mq_ui` binary (`FP64`, `NAN2008`, `EF_MIPS_NAN2008`).
+### What happens when you run `./dialos-mac flash`:
+1. **Builds & verifies automatically (if needed)**:
+   - Cross-compiles the static MIPS32r2 `mq_ui` binary (`FP64`, `NAN2008`, `EF_MIPS_NAN2008`).
    - Patches the verified FiiO SquashFS (`build/dialos_nand.bin`, `100,663,296` bytes) while preserving the original FiiO UI at `/usr/bin/mq_ui.stock`.
    - Saves a verified 100% stock recovery backup at `~/Library/Application Support/DialOS/backups/stock_V257_nand.bin`.
 2. **Waits interactively for USB Mask-ROM Mode (`a108:eaef`)**:
-   - If your Snowsky DISC isn't connected yet, `make flash` waits up to 3 minutes while you put the device into Mask-ROM mode:
+   - If your Snowsky DISC isn't connected yet, `./dialos-mac flash` waits up to 3 minutes while you put the device into Mask-ROM mode:
      1. **Power OFF** the Snowsky DISC completely.
      2. **Hold down the Volume-Down button**.
      3. While holding **Volume-Down**, **plug the USB-C cable** into your Mac.
@@ -48,7 +47,7 @@ Once DialOS is installed via USB Mask-ROM once, you **never need to wait 18 minu
 1. Insert your microSD card into your Mac (mounted at `/Volumes/MUSIC`).
 2. Run:
    ```bash
-   make sd-update
+   ./dialos-mac sd-update
    ```
 3. Eject the microSD card, insert it into your Snowsky DISC, and power on — DialOS automatically loads `/tmp/sdcard/dialos/mq_ui` from the SD card on boot!
 
@@ -59,7 +58,7 @@ Once DialOS is installed via USB Mask-ROM once, you **never need to wait 18 minu
 You have **two ways** to return to the original FiiO Snowsky DISC UI at any time:
 
 ### Option A: Instant microSD Escape Hatch (5 seconds, no USB cable needed)
- Because the original FiiO binary is preserved inside the firmware at `/usr/bin/mq_ui.stock`:
+Because the original FiiO binary is preserved inside the firmware at `/usr/bin/mq_ui.stock`:
 - Create an empty file named `use_stock` inside the `dialos/` folder on your microSD card:
   ```bash
   mkdir -p /Volumes/MUSIC/dialos && touch /Volumes/MUSIC/dialos/use_stock
@@ -69,6 +68,5 @@ You have **two ways** to return to the original FiiO Snowsky DISC UI at any time
 ### Option B: Full 100% Stock NAND Restore over USB Mask-ROM
 To restore the untouched factory SquashFS partition over USB Mask-ROM:
 ```bash
-make restore-stock
+./dialos-mac restore-stock
 ```
-*(or `./dialos-mac restore-stock`)*

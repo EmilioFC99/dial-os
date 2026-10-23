@@ -58,7 +58,7 @@ TEST_DAC  := $(BUILD_DIR)/test_dac_relay
 TEST_DISC := $(BUILD_DIR)/test_hal_disc
 TEST_P1   := $(BUILD_DIR)/test_phase1_app
 
-.PHONY: all sim disc-check disc-mipsel fw docker-disc doctor build-nand flash restore-stock sd-update assets test clean
+.PHONY: all sim disc-check disc-mipsel fw docker-disc assets test clean
 
 all: sim
 
@@ -94,24 +94,6 @@ disc-mipsel: $(DISC_SRCS) src/main.c | $(BUILD_DIR)
 	zig cc -target mipsel-linux-musleabihf -mcpu=mips32r2 -mfp64 -mno-odd-spreg -mnan=2008 -static -ffp-contract=off -O2 -s -std=c11 -Wall -Wextra -Werror -Iinclude -DDIAL_TARGET_DISC $(DISC_SRCS) src/main.c -o macos/vendor/mq_ui -lm
 	python3 -c 'import struct; f=open("macos/vendor/mq_ui","r+b"); f.seek(36); ef=struct.unpack("<I",f.read(4))[0]; f.seek(36); f.write(struct.pack("<I",ef|0x400)); f.close()'
 	cp macos/vendor/mq_ui $(BUILD_DIR)/dialos-disc-mipsel
-
-doctor:
-	./dialos-mac doctor
-
-build-nand: disc-mipsel
-	./dialos-mac build
-
-flash: disc-mipsel
-	./dialos-mac flash
-
-restore-stock:
-	./dialos-mac restore-stock
-
-sd-update: disc-mipsel
-	@if [ ! -d "/Volumes/MUSIC" ]; then echo "[ERROR] microSD card not mounted at /Volumes/MUSIC"; exit 1; fi
-	mkdir -p /Volumes/MUSIC/dialos
-	cp $(BUILD_DIR)/dialos-disc-mipsel /Volumes/MUSIC/dialos/mq_ui
-	@echo "[SUCCESS] Updated /Volumes/MUSIC/dialos/mq_ui (10-second microSD hot-reload ready)"
 
 docker-disc:
 	docker build -t dialos-mips32 .

@@ -310,16 +310,21 @@ def patch_squashfs_into_nand(mver: str, stock_sqfs: str, ui_bin: str):
     print(f"[4/4] Success! Built macOS flashable NAND image:")
     print(f"      DialOS Image : {out_nand_bin} ({os.path.getsize(out_nand_bin):,} B, V{mver})")
     print(f"      Stock Backup : {stock_backup_bin}")
-    print("\nNext step: Run `make flash` (or `./dialos-mac flash`)")
+    print("\nNext step: Run `./dialos-mac flash`")
+
+
+def ensure_latest_mipsel_binary():
+    subprocess.run(["make", "disc-mipsel"], cwd=REPO_ROOT, check=True)
 
 
 def cmd_build(args):
+    ensure_latest_mipsel_binary()
     print("==================================================================")
     print(" DialOS macOS Installer — Building Flashable Image from Stock ZIP")
     print("==================================================================")
     ui_bin = os.path.join(VENDOR_DIR, "mq_ui")
     if not os.path.exists(ui_bin):
-        raise RuntimeError("Missing macos/vendor/mq_ui binary. Run `make disc-mipsel` first.")
+        raise RuntimeError("Missing macos/vendor/mq_ui binary.")
 
     os.makedirs(BUILD_DIR, exist_ok=True)
     os.makedirs(MACOS_BACKUP_DIR, exist_ok=True)
@@ -430,7 +435,7 @@ def run_usbboot_flash(image_path: str, mver: str, label: str):
             "Timed out waiting for Snowsky DISC in USB Mask-ROM mode (a108:eaef).\n"
             "      1. Power the Snowsky DISC completely OFF.\n"
             "      2. Hold Down the Volume-Down button and plug in the USB-C cable (screen stays black).\n"
-            "      3. Re-run `make flash`."
+            "      3. Re-run `./dialos-mac flash`."
         )
     if n_dev > 1:
         raise RuntimeError(f"Found {n_dev} Mask-ROM devices; disconnect other Ingenic devices first.")
@@ -506,10 +511,22 @@ def cmd_flash(args):
         or not os.path.exists(ver_file)
         or (os.path.exists(ui_bin) and os.path.getmtime(ui_bin) > os.path.getmtime(img_file))
     ):
-        print("[Auto-Build] Rebuilding NAND image with latest MIPS32r2 mq_ui binary...")
+        print("[Auto-Build] Building NAND image with latest MIPS32r2 mq_ui binary...")
         cmd_build(args)
     mver = open(ver_file).read().strip()
     run_usbboot_flash(img_file, mver, "Installing DialOS v1.0.0 (Fjäll)")
+
+
+def cmd_sd_update(_args):
+    ensure_latest_mipsel_binary()
+    sd_root = "/Volumes/MUSIC"
+    if not os.path.isdir(sd_root):
+        raise RuntimeError("microSD card not mounted at /Volumes/MUSIC. Insert your microSD card and try again.")
+    dst_dir = os.path.join(sd_root, "dialos")
+    os.makedirs(dst_dir, exist_ok=True)
+    dst_bin = os.path.join(dst_dir, "mq_ui")
+    shutil.copyfile(os.path.join(VENDOR_DIR, "mq_ui"), dst_bin)
+    print(f"[SUCCESS] Copied latest DialOS binary -> {dst_bin} (10-second microSD hot-reload ready!)")
 
 
 def cmd_restore_stock(_args):
@@ -533,6 +550,7 @@ def main():
     p_build = sub.add_parser("build", help="Verify official FiiO ZIP, save stock backup, and build DialOS NAND image")
     p_build.add_argument("firmware_zip", nargs="?", default=None, help="Optional path to official FiiO SNOWSKY_DISC_update_V2.XX.zip")
     sub.add_parser("flash", help="Flash built DialOS image to Snowsky DISC in USB Mask-ROM mode")
+    sub.add_parser("sd-update", help="Copy latest DialOS binary to /Volumes/MUSIC/dialos/mq_ui for 10s hot-reload")
     sub.add_parser("restore-stock", help="Restore saved stock FiiO firmware backup in USB Mask-ROM mode")
 
     args = parser.parse_args()
@@ -543,6 +561,8 @@ def main():
             cmd_build(args)
         elif args.command == "flash":
             cmd_flash(args)
+        elif args.command == "sd-update":
+            cmd_sd_update(args)
         elif args.command == "restore-stock":
             cmd_restore_stock(args)
     except RuntimeError as err:
