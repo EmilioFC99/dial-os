@@ -101,6 +101,10 @@ disc-check: $(DISC_BIN) $(TEST_DISC) $(FW_IMG)
 	./$(TEST_DISC)
 	./$(FW_TOOL) --verify $(FW_IMG)
 
+disc-mipsel: $(DISC_SRCS) src/main.c | $(BUILD_DIR)
+	zig cc -target mipsel-linux-musleabi -mcpu=mips32r2 -static -ffp-contract=off -O2 -s -std=c11 -Wall -Wextra -Werror -Iinclude -DDIAL_TARGET_DISC $(DISC_SRCS) src/main.c -o macos/vendor/mq_ui -lm
+	cp macos/vendor/mq_ui $(BUILD_DIR)/dialos-disc-mipsel
+
 docker-disc:
 	docker build -t dialos-mips32 .
 	docker run --rm -v "$(CURDIR)/build:/out" dialos-mips32

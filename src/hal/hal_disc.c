@@ -130,12 +130,33 @@ bool dial_hal_init(bool headless) {
         }
     }
 
+    /* Ensure PWM display backlight is turned ON on boot/restart (fiio_init.sh sets it to 0 on restart) */
+    {
+        const char *bl_paths[] = {
+            "/sys/bus/platform/drivers/pwm-backlight/backlight/backlight/backlight/brightness",
+            "/sys/class/backlight/backlight/brightness"
+        };
+        for (size_t i = 0; i < 2; ++i) {
+            int bfd = open(bl_paths[i], O_WRONLY);
+            if (bfd >= 0) {
+                (void)write(bfd, "180\n", 4);
+                close(bfd);
+                break;
+            }
+        }
+    }
+
     /* Patch #2: event1 = cst816t touch, event0 = x2000_key physical buttons */
     g_touch_fd = open(DIAL_DEV_TOUCH, O_RDONLY | O_NONBLOCK);
     g_keys_fd  = open(DIAL_DEV_KEYS,  O_RDONLY | O_NONBLOCK);
 
+    /* fiio_init.sh starts mq_ui 2 seconds BEFORE mq_player: create /ui upfront and lazily open /player */
+    struct mq_attr attr;
+    memset(&attr, 0, sizeof(attr));
+    attr.mq_maxmsg  = 10;
+    attr.mq_msgsize = 8192;
+    g_mq_ui     = mq_open(DIAL_MQ_UI,     O_CREAT | O_RDONLY | O_NONBLOCK, 0666, &attr);
     g_mq_player = mq_open(DIAL_MQ_PLAYER, O_WRONLY | O_NONBLOCK);
-    g_mq_ui     = mq_open(DIAL_MQ_UI,     O_RDONLY | O_NONBLOCK);
 
     /* Request initial state snapshot ("02020008") from mq_player on boot */
     dial_hal_send_ipc(DIAL_CMD_GET_STATE, "");
@@ -330,6 +351,9 @@ bool dial_hal_send_ipc(const char *opcode, const char *payload) {
     }
 
 #if defined(__linux__)
+    if (g_mq_player == (mqd_t)-1) {
+        g_mq_player = mq_open(DIAL_MQ_PLAYER, O_WRONLY | O_NONBLOCK);
+    }
     if (g_mq_player != (mqd_t)-1 && frame_len > 0) {
         (void)mq_send(g_mq_player, g_last_wire_frame, frame_len, 0);
     }
