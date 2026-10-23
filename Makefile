@@ -102,7 +102,8 @@ disc-check: $(DISC_BIN) $(TEST_DISC) $(FW_IMG)
 	./$(FW_TOOL) --verify $(FW_IMG)
 
 disc-mipsel: $(DISC_SRCS) src/main.c | $(BUILD_DIR)
-	zig cc -target mipsel-linux-musleabi -mcpu=mips32r2 -static -ffp-contract=off -O2 -s -std=c11 -Wall -Wextra -Werror -Iinclude -DDIAL_TARGET_DISC $(DISC_SRCS) src/main.c -o macos/vendor/mq_ui -lm
+	zig cc -target mipsel-linux-musleabihf -mcpu=mips32r2 -mfp64 -mno-odd-spreg -mnan=2008 -static -ffp-contract=off -O2 -s -std=c11 -Wall -Wextra -Werror -Iinclude -DDIAL_TARGET_DISC $(DISC_SRCS) src/main.c -o macos/vendor/mq_ui -lm
+	python3 -c 'import struct; f=open("macos/vendor/mq_ui","r+b"); f.seek(36); ef=struct.unpack("<I",f.read(4))[0]; f.seek(36); f.write(struct.pack("<I",ef|0x400)); f.close()'
 	cp macos/vendor/mq_ui $(BUILD_DIR)/dialos-disc-mipsel
 
 docker-disc:

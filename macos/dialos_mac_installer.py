@@ -402,10 +402,25 @@ def run_usbboot_flash(image_path: str, mver: str, label: str):
             "--addr", "0xa0a00000", "--length", "0x400", "--upload", dbg_path,
         ]
         print("  Keeping Mac awake via `caffeinate -dimsu`...")
-        print("  Flashing over USB Mask-ROM (~18-20 minutes). DO NOT unplug USB!")
-        print(f"  Live log: {log_path}")
+        print("  Flashing over USB Mask-ROM (~18 minutes). DO NOT unplug USB!")
+        print(f"  Live log: {log_path}", flush=True)
+        t0 = time.time()
         with open(log_path, "w") as logf:
-            subprocess.run(cmd, stdout=logf, stderr=subprocess.STDOUT, check=True)
+            proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT)
+            last_report = 0
+            while proc.poll() is None:
+                elapsed = int(time.time() - t0)
+                if elapsed - last_report >= 30:
+                    last_report = elapsed
+                    pct = min(99, int((elapsed / int(FLASH_WAIT_SECS)) * 100))
+                    print(
+                        f"  [{elapsed // 60:02d}:{elapsed % 60:02d} / 18:00] "
+                        f"({pct:2d}%) Programming & verifying NAND blocks 64..831...",
+                        flush=True,
+                    )
+                time.sleep(2)
+            if proc.returncode != 0:
+                raise RuntimeError(f"usbboot exited with code {proc.returncode} (see {log_path})")
 
         if not os.path.exists(dbg_path) or os.path.getsize(dbg_path) < 1024:
             raise RuntimeError("No debug readback received from device! Wait 25 minutes before unplugging.")
