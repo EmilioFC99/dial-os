@@ -1,118 +1,86 @@
-# DialOS — Workspace Rules & Single Source of Truth (Fjäll Design System)
+# DialOS — Single Source of Truth (Fjäll Design System & Snowsky DISC Hardware Guide)
 
-> **CRITICAL ARCHITECTURAL RULE — VISUAL THEME vs. REAL OS BEHAVIOR:**
-> `assets/nordic/fjall-design-system.html` and the screen IDs (`SYS-00` through `OVL-04`) define the **visual theme, layout templates, typography, colour tokens, and interaction states** — they are **NOT** a slide deck to step through sequentially (`screen_id + 1`), and their sample text (`"Tycho"`, `"Bonobo"`, `"Studio_5G"`, `"Sony WH-1000XM5"`, `"84%"`, `"09:41"`) is **placeholder illustration only**.
-> - **ZERO FAKE / DEMO DATA:** Never hardcode sample songs, artists, albums, Wi-Fi SSIDs, Bluetooth devices, battery percentages, or clocks in C code. Every list and status indicator must be driven by **real filesystem/SD-card data (`/mnt/mmcblk0p1`)** and **real hardware/sysfs state**. If nothing is connected or no SD card is inserted, show the real disconnected/empty state.
-> - **REAL HIERARCHICAL NAVIGATION & BACK GESTURE:** Screen IDs like `NP-02` (Quick Actions), `NP-05` (Volume HUD), `FIL-02` (File Action Sheet), `FIL-03` (Delete Confirm), or `HOM-01..03` are **dynamic states, overlays, or scroll positions of real views**, never linear slides. Swiping right from the left edge MUST always act as a universal **Go Back** gesture popping the navigation/directory stack.
-
-## 1. Visual & Token Single Source of Truth (SSOT)
-All UI implementation, simulator views, and C firmware code MUST strictly conform to the **Fjäll** ("Nordic Office & Nature") design system:
-- **Interactive Spec & 38 Master Screens:** `assets/nordic/fjall-design-system.html`
-- **C Theme & Geometry Tokens:** `include/dial_theme.h` (synced with `assets/nordic/dial_theme_fjall.h`)
-- **W3C DTCG JSON Tokens:** `assets/nordic/tokens.json`
-- **70 Vector Icons (`24×24` grid, `1.75px` stroke, round caps):** `assets/nordic/fjall-icons.svg`
-- **Hardware & System Architecture:** `docs/DIAL_OS_SYSTEM_REQUIREMENTS.md`
-- **Milestone & Release Roadmap (`v0.1.0` → `v1.0.0`):** `docs/ROADMAP.md`
-
-### Strict Token Discipline
-- **Never hardcode raw hex colours, pixel sizes, or durations** in screen code. Always reference `dial_palette_t` (`DIAL_PALETTE_NIGHT` / `DIAL_PALETTE_DAY`) and the `DIAL_*` macros in `include/dial_theme.h` and `include/dial_config.h`.
-- **Semantic Colour Rule:**
-  - `moss` (`#8DB596` Night / `#47755A` Day) is the **only primary interactive accent** (focus rings, active toggles, track progress, active mode).
-  - `fjord` is reserved for **connectivity** (`Wi-Fi`, `Bluetooth`).
-  - `cloudberry` is reserved for **warnings, high gain (`+6 dB`), and game scores**.
-  - `lingon` is reserved **exclusively for destructive actions and errors** (never decorative).
-  - `birch` is reserved for **brightness and warm neutral highlights**.
+> **CRITICAL DIRECTIVE — REAL FUNCTIONAL DAP UI (ZERO DEMO / ZERO SLIDES):**
+> We are building a **100% functional, data-driven, responsive Digital Audio Player (DAP) UI** for the **FiiO Snowsky DISC** (`360×360` round touchscreen).
+> - `assets/nordic/fjall-design-system.html` is **strictly the visual theme, layout grammar, typography, colour palette, and component style guide**.
+> - **DO NOT** build a linear slide-deck showcase (`screen_id + 1` / `screen_id - 1`).
+> - **DO NOT** hardcode fake songs, artists, albums, Wi-Fi SSIDs (`"Studio 5G"`), Bluetooth headphones (`"WH-1000XM5"`), battery percentages (`"84%"`), or clocks (`"09:41"`).
+> - Every list, status bar, and screen must be driven by **real filesystem/SD-card audio files**, **real hardware/sysfs telemetry**, and a **real hierarchical navigation stack (`nav_stack`)** with a universal **Left-Edge Swipe-Right ("Go Back")** gesture.
 
 ---
 
-## 2. Locked Screen & UX Architecture Decisions
-Do not regress any of the following locked design specifications:
+## 1. What Is Already Built & Verified in This Repository (Do Not Recreate)
 
-1. **Full-Bleed Spinning Vinyl (`NP-01`–`NP-05` & `LCK-02`):**
-   - Album artwork covers `100%` of the circular display (`360×360`, $r = 180\text{px}$) with subtle vinyl groove rings and radial edge vignette.
-   - `LCK-02` (Lock screen while playing) also uses `360×360` full-bleed spinning art with floating transparent track title/artist (no rectangular card box) and 3 bottom transport buttons.
-
-2. **Now Playing (`NP-01`) — Pure Vinyl & Inner Circle Seek Ring:**
-   - **Zero song title, artist, or album text** on `NP-01`.
-   - **No left-side seek arc** on the outer rim.
-   - **Inner Vinyl Circle (`r = 38px`, `DIAL_VINYL_SEEK_R`):** Single progress & seek indicator around the center label border. Maps angle $\theta \in [0^\circ, 360^\circ)$ clockwise from 12 o'clock (`0° = 0%`, `90° = 25%`, `180° = 50%`, `270° = 75%`, `359° = 99%`).
-   - **Two Supported Seek Gestures:**
-     1. **Direct slide on the inner ring (`24px ≤ r ≤ 54px`):** Grabbing and sliding along the inner ring scrubs directly to that angle (with radial capture so the thumb can drift outward once grabbed).
-     2. **Long-press (`300 ms`) & turn anywhere on the vinyl (`r < 145px`):** Turntable scrub mode (pauses auto-spin, fires haptic tick, and rotates the inner seek ring).
-   - **Bottom Handle:** Only the `^` (`up`) chevron icon at `bottom: 16px` (no text label). Swiping up opens `NP-04` (Track Details, read-only).
-   - **Tap Gestures on `NP-01`:**
-     - **1 touch (single tap):** Opens `NP-02` (Quick Actions).
-     - **2 quick touches (double-tap):** Toggles Play / Pause immediately.
-     - **Swipe Right / Left:** Next / Previous track.
-
-3. **Quick Actions (`NP-02`) — Floating Metadata & Bottom Arc:**
-   - Opened with **1 touch** on `NP-01`; **1 touch** again closes it.
-   - Top overline: `QUICK ACTIONS`.
-   - Center: **Song Title, Artist, and Album rendered as floating text on a transparent background** (no rectangular/pill card background).
-   - Bottom Arc (`r = 118px` at polar angles `234°`, `198°`, `162°`, `126°`): 4 circular `52px` action pucks:
-     1. `heart` (Favorite)
-     2. `shuffle` (Shuffle)
-     3. `playlist` (Add to playlist)
-     4. `lyrics` (Speech bubble with quotation marks `“ ”` — opens `NP-03` Synced Lyrics)
-
-4. **Volume HUD (`NP-05`):**
-   - Triggered when tracing the right rim (`r > 150px`).
-   - **Do NOT render any inner circle** (neither a `270°` center ring nor the `r = 38px` vinyl ring). Show **only the right-side outer rim arc** (`r = 166px`, `w = 6px`), the centered hero volume number (`82`), `VOLUME` caption, and output text (`4.4 mm BAL`).
-
-5. **Control Center (`CC-01`) — Icon-Only `3×2` Pucks:**
-   - `3×2` grid of `66px` circular icon pucks with **zero text labels** inside or beneath the pucks:
-     - Row 1: `wifi` (`fjord` when ON), `bluetooth` (`fjord` when ON), `mode_*` (`moss`, displays the icon of the active mode: `mode_player`, `mode_usbdac`, `mode_transport`, `mode_btrx`, `mode_airplay`, `mode_transfer`).
-     - Row 2: `gain_low` / `gain_high` (`cloudberry` when High Gain ON, swaps icon), `usb_charge` (`moss` when ON, unlit when OFF), `lock` (Touch Lock shield `CC-02`).
-   - **Tap** = toggle state; **Hold (`450 ms`)** on `Wi-Fi`, `Bluetooth`, or `Mode` opens its respective submenu (`SET-06`, `SET-07`, `MOD-00`).
-
-6. **Music Library (`LIB-01`–`LIB-04`):**
-   - `LIB-01` row order is strictly:
-     1. **Favorites** (`heart`)
-     2. **Playlists** (`playlist`)
-     3. **Artists** (`artist`)
-     4. **Albums** (`album`)
-     5. **Genres** (`genre`)
-   - `LIB-02` (Albums Cover Arc): Supports **both** horizontal across-screen swipes (1 album step) and right-side rim scrolling (`scrollRim` fast scrub).
-   - `LIB-03` (Track List): Playing track shows animated `moss` equalizer bars + `Playing` (no codec/bit-depth clutter in the track list).
-
-7. **Browse Files (`FIL-01`–`FIL-04`):**
-   - **Long-press on a File (`FIL-02`):** Opens the Action Sheet to **Edit tags** (edits song metadata tags ID3/Vorbis + file name, never raw audio bytes), **Move**, or **Delete**.
-   - **Long-press on a Folder (`FIL-02`):** Allows **renaming** the folder, or **recursively moving / deleting** the folder and all nested contents.
-   - **Delete Confirmation (`FIL-03`):** Requires a `600 ms` hold on the `lingon` red button (`Hold to delete`).
-
-8. **Operating Modes (`MOD-02`) & Fast-Cache Bluetooth (`SET-07`):**
-   - Long row titles in focused/compact rows (such as `"Draw power from host"` in `MOD-02`) use a smooth horizontal train-slide marquee rather than clipping with `..`.
-   - **Fast-Cache Bluetooth (`SET-07`):**
-     - Persist `dial_bt_peer_cache_t` in NVS/flash where index `0` is always the **last connected device (`Default`)** along with its `bd_addr[6]`, `clock_offset`, `page_scan_mode`, cached `remote_seid`, `preferred_codec`, and `saved_volume`.
-     - When Bluetooth is enabled, issue a unicast **Direct Page (`HCI_Create_Connection`)** to `peer_cache[0].bd_addr` *before* any inquiry scan (`< 400 ms` lock).
-     - Negotiate codecs via cached `remote_seid` or single-pass priority ladder: **`LDAC 990 kbps` → `LDAC 660/330` → `aptX HD` → `aptX` → `AAC` → `SBC`**, and restore `saved_volume` per MAC address.
+1. **Fjäll Design System Assets (`assets/nordic/`):**
+   - `assets/nordic/fjall-design-system.html` — Interactive visual specification & layout templates.
+   - `assets/nordic/fjall-icons.svg` — 70 custom vector icons (`24×24` grid, `1.75px` stroke, round caps).
+   - `assets/nordic/tokens.json` & `include/dial_theme.h` — Night ("Carbon") and Day ("Warm Paper") colour palettes and geometry tokens.
+2. **Low-Level 2D Rendering, Font & Vector Icon Engine (`src/ui/`, `src/core/dial_polar.c`):**
+   - `src/ui/dial_draw.c` (`include/dial_draw.h`): Sub-pixel anti-aliased circles, rings, arcs, rounded rectangles, rim lists, scroll arcs, and 8-bit alpha text rendering.
+   - `src/ui/dial_icons.c` (`include/dial_icons.h`): All 70 Fjäll vector icons compiled into C stroke tables (`dial_draw_icon_by_name`).
+   - `src/ui/dial_assets.c` (`include/dial_assets.h`): Pre-baked CoreText proportional font atlas (`10px..44px` with Nordic UTF-8 support).
+   - `src/core/dial_polar.c` & `src/core/dial_gestures.c`: Polar coordinate math ($r, \theta$), rim detent tracker, and touch gesture disambiguator.
+3. **Dual-Target Hardware Abstraction Layer (`src/hal/`):**
+   - **macOS Live Simulator (`src/hal/hal_sdl2.c` & `src/hal/hal_media.c`):** Native macOS Cocoa `360×360` window + `AudioToolbox` real audio streaming (`.flac`, `.mp3`, `.wav`, `.m4a` playback on Mac) + `ImageIO` embedded cover art extractor + real directory scanner (`opendir`/`readdir`).
+   - **FiiO Snowsky DISC Hardware Backend (`src/hal/hal_disc.c`):** Verified on physical Snowsky DISC hardware (see Section 2 below).
+4. **macOS Native Firmware Builder & USB Mask-ROM Flasher (`./dialos-mac` & `macos/`):**
+   - `./dialos-mac doctor` — Verifies macOS native tools (`usbboot`, `mksquashfs`, `unsquashfs`, `disc_spl_lpddr3.bin`, `my_write6_dram.bin`, `mq_ui`) and USB Mask-ROM connection (`a108:eaef`).
+   - `./dialos-mac build <official_fiio_update.zip>` — Decrypts FiiO's `fo123` AES-256-CBC firmware chunks natively on macOS, saves a verified stock backup (`~/Library/Application Support/DialOS/backups/`), patches `/usr/bin/mq_ui`, and builds `build/dialos_nand.bin`.
+   - `./dialos-mac flash` & `./dialos-mac restore-stock` — Flashes DialOS or restores 100% stock firmware over USB Mask-ROM.
 
 ---
 
-## 3. Engineering & Dual-Target HAL Architecture
-1. **Strict HAL Boundary (`src/hal/`):**
-   - Screen, component, and state-machine code (`src/screens/`, `src/ui/`, `src/core/`) MUST be 100% platform-agnostic C.
-   - Never include Linux-specific headers (`<linux/fb.h>`, `<linux/input.h>`, `<mqueue.h>`) outside `src/hal/`.
-   - Every feature must build and run natively on **macOS Simulator (SDL2)** and cross-compile cleanly for **Snowsky DISC (Ingenic X2000 MIPS32 Linux)**.
-2. **Memory & Performance Budget:**
-   - Total UI process RAM footprint must remain **$\le 24.0\text{ MB}$** at `60 FPS` (`16.67 ms` frame budget).
-   - Use static/arena allocation for UI nodes and texture atlases; avoid per-frame `malloc`/`free` in the render loop.
+## 2. FiiO Snowsky DISC Hardware Reverse-Engineering Specifications (Verified on V2.57)
+
+1. **SoC & Toolchain (`make disc-mipsel`):**
+   - **CPU:** Ingenic X2000 (MIPS32r2 Little-Endian, XBurst2 dual-core, 64-bit FPU with hardware IEEE 754-2008 NaN).
+   - **Required ELF ABI (`e_flags = 0x70001405`):** Every binary on FiiO's rootfs uses O32 FP64A + `EF_MIPS_NAN2008` (`0x400`). Cross-compile on macOS via `make disc-mipsel` (`zig cc -target mipsel-linux-musleabihf -mcpu=mips32r2 -mfp64 -mno-odd-spreg -mnan=2008 -static -ffp-contract=off -O2 -s` + setting `0x400` in ELF `e_flags`).
+2. **Display (`/dev/fb0`, `ingenicfb`):**
+   - `360×360` visible resolution (`360×1080` triple-buffered virtual height), **`32 bpp XRGB8888`**.
+   - **Physical Panel Rotation:** Mounted **180° upside-down** in the chassis. Every frame blit must write `dst[(359 - y) * stride + (359 - x)] = src[y * 360 + x]`.
+   - **Init Sequence:** Clear all 3 pages (`memset`), pan to `yoffset = 0` with `FB_ACTIVATE_NOW` (`FBIOPAN_DISPLAY`), and turn on PWM backlight (`write "180\n"` to `/sys/bus/platform/drivers/pwm-backlight/backlight/backlight/backlight/brightness` or `/sys/class/backlight/backlight/brightness`).
+3. **Capacitive Touch (`/dev/input/event1`, `cst816t`):**
+   - Emits **Linux Multitouch Type-B** (`ABS_MT_TRACKING_ID`, `ABS_MT_POSITION_X`, `ABS_MT_POSITION_Y`), NOT single-touch `ABS_X/Y`.
+   - **180° Coordinate Inversion:** Map raw coordinates via `x = 359 - raw_x`, `y = 359 - raw_y`.
+4. **Physical Side Buttons (`/dev/input/event0`, `x2000_key`):**
+   - `KEY_POWER` (`116`), `KEY_PLAYPAUSE` (`164`), `KEY_VOLUMEUP` (`115`), `KEY_VOLUMEDOWN` (`114`).
+5. **Stock Watchdog (`/usr/project/fiio_init.sh`) & Boot Order:**
+   - On boot, `/usr/project/fiio_init.sh` runs `mq_ui &`, sleeps 2 seconds, then runs `mq_player &`, and loops every 5 seconds checking `pgrep -x mq_ui`.
+   - Our binary replaces `/usr/bin/mq_ui`, calls `prctl(PR_SET_NAME, "mq_ui")`, creates the `/ui` POSIX mqueue upfront (`O_CREAT | O_RDONLY | O_NONBLOCK`), and lazily opens `/player` (`O_WRONLY | O_NONBLOCK`) once `mq_player` starts 2 seconds later.
+   - **SD-Card Hot-Reload Hook (`src/main.c`):** On boot, if `/mnt/mmcblk0p1/dialos/use_stock` exists, `mq_ui` execs `/usr/bin/mq_ui.stock`. If `/mnt/mmcblk0p1/dialos/mq_ui` exists, it copies it to `/tmp/mq_ui.sd` and execs it — allowing instant SD-card testing without 18-minute USB NAND flashes.
+6. **Audio Daemon IPC (`/player` & `/ui` POSIX Message Queues):**
+   - Wire frame format (`dial_ipc_format_frame` in `include/dial_ipc.h`): ASCII `TAG(4) + TOTAL_LEN(4 hex) + VALUE1(4 hex) [+ payload]`:
+     - Play: `"0101000C0001"` | Pause: `"0201000C0000"` | Resume: `"0201000C0001"`
+     - Next: `"0647000C0000"` | Prev: `"0649000C0000"`
+     - Volume (`0..100` mapped to `0..120` / `0x00..0x78`): `"0715000C%04X"`
+     - Seek (`ms`): `"01030010%08X"` | Get State Snapshot: `"02020008"`
+     - Play File Path: `"0602%04X0000%s"`
+7. **Real Device Paths on Snowsky DISC:**
+   - **microSD Card Mount:** `/mnt/mmcblk0p1`
+   - **FiiO SQLite Music DB:** `/usr/data/fiio/db/`
+   - **Battery:** `/sys/class/power_supply/battery/capacity` (`0..100`) & `/sys/class/power_supply/battery/status`
+   - **Backlight Brightness:** `/sys/class/backlight/backlight/brightness` (`0..255`)
+   - **LRA Haptic Motor:** `/sys/class/leds/vibrator/duration` & `/sys/class/leds/vibrator/activate`
+   - **Wi-Fi / Bluetooth:** `/sys/class/net/wlan0/operstate`, `/usr/data/fiio/bt_state`
 
 ---
 
-## 4. Git, Testing, Open-Source & Release Discipline (Mandatory)
-1. **Atomic Conventional Commits:**
-   - Every commit MUST be small, atomic (one logical change per commit), and formatted strictly according to [Conventional Commits](https://www.conventionalcommits.org/):
-     - `feat(<scope>): ...` — new screen, component, gesture, or HAL feature
-     - `fix(<scope>): ...` — bugfix, layout correction, or memory fix
-     - `test(<scope>): ...` — unit, gesture FSM, or headless framebuffer snapshot tests
-     - `docs(<scope>): ...` — documentation, design sheet, or README updates
-     - `refactor(<scope>): ...` — internal restructuring without behavior change
-     - `build:` / `ci:` / `chore:` — toolchain, GitHub Actions, or repo maintenance
-2. **Zero Code Ships Without Tests & Live Interactive UI Verification (TDD Gate):**
-   - **Never commit or merge C implementation code without accompanying automated unit AND interactive UI tests** (`tests/`).
-   - Every logic module (polar math, gesture FSM, Bluetooth cache, list physics, navigation stack, sysfs telemetry, media indexer) requires unit tests; and every interactive flow (universal left-edge Back swipe, directory drill-down, scrubbing `r = 38px` vinyl seek ring, tapping `CC-01` pucks, rim scrolling dynamic lists, `600 ms` hold unlock/delete, empty/disconnected states) MUST be verified end-to-end and playable live in the native macOS Cocoa / SDL2 window (`make sim && ./build/dialos-sim`) passing under `AddressSanitizer` + `UndefinedBehaviorSanitizer`.
-3. **Tagged Releases & Deployments:**
-   - Every release or deployment milestone MUST be tagged with an annotated Semantic Version tag (`git tag -a vX.Y.Z -m "..."`).
-4. **Open-Source Showcase & GitHub Pages Sync:**
-   - This is an open-source project. Keep `README.md` and the interactive GitHub Pages showcase (`assets/nordic/fjall-design-system.html` deployed via `.github/workflows/pages.yml`) up to date whenever screens or features evolve.
+## 3. Fjäll Design & UX Rules (Visual & Interaction Grammar)
+
+1. **Strict Token Discipline:**
+   - Always use `dial_palette_t` (`DIAL_PALETTE_NIGHT` / `DIAL_PALETTE_DAY`) and `include/dial_theme.h`.
+   - `moss` (`#8DB596` Night / `#47755A` Day) = primary interactive accent (focus rings, active toggles, track progress).
+   - `fjord` = connectivity (`Wi-Fi`, `Bluetooth`).
+   - `cloudberry` = warnings, high gain (`+6 dB`), game scores.
+   - `lingon` = destructive actions and errors only.
+   - `birch` = brightness and warm neutral highlights.
+2. **Real Hierarchical Navigation & Universal "Go Back" Gesture:**
+   - Maintain a real navigation stack (`nav_stack`) of active views and directory paths.
+   - **Swipe Right from Left Edge (`x < 48px`, `dx > +45px`)** or tapping the 9 o'clock `<` back chevron **pops the current view or steps up to the parent directory** from anywhere in the OS.
+   - **Swipe Down from Top Rim (`y < 48px`, `dy > +45px`)** pulls down the **Control Center** overlay from any screen; **Swipe Up** dismisses it.
+3. **Core Views to Build Step-by-Step:**
+   - **Home Launcher:** Circular pebble carousel (`Now Playing`, `Library`, `Files`, `Modes`, `Settings`, `Arcade`) with live dynamic subtitles (real playing track or `"Not Playing"`, real track/artist count, real free microSD space).
+   - **Files (Real Directory Browser):** Browse real folders and audio files rooted at `/mnt/mmcblk0p1` (or `--music <dir>` on Mac), with rim/touch scrolling, folder drill-down, long-press file action sheet (`FIL-02`), and `600 ms` hold-to-delete (`FIL-03`).
+   - **Now Playing:** Full-bleed `360×360` spinning vinyl art (`NP-01`) with the `r = 38px` inner seek ring (`0°..359°`), zero text clutter on `NP-01`, single-tap to toggle `NP-02` Quick Actions (floating real song title/artist/album + Favorite/Shuffle/Playlist/Lyrics pucks), double-tap to toggle Play/Pause, swipe left/right for Prev/Next track in the active folder/album queue, swipe up for `NP-04` real audio specs, and right-rim trace (`r > 150px`) for `NP-05` Volume HUD.
+   - **Library:** Strict 5-row hub (`Favorites`, `Playlists`, `Artists`, `Albums`, `Genres`), Cover Arc (`LIB-02`), and Track List (`LIB-03`) populated strictly from real scanned audio files (showing a clean empty state if no music is present).
+   - **Control Center (`CC-01`) & Settings (`SET` / `MOD`):** `3×2` icon-only `66px` pucks (`wifi`, `bluetooth`, `mode_*`, `gain`, `usb_charge`, `lock`) and settings submenus wired to real hardware state and sysfs controls.

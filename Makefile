@@ -31,14 +31,9 @@ CORE_SRCS := src/hal/hal_sdl2.c \
              src/core/dial_gestures.c \
              src/core/dial_bt.c \
              src/core/dial_dac.c \
-             src/core/dial_app.c \
              src/ui/dial_assets.c \
              src/ui/dial_draw.c \
-             src/ui/dial_icons.c \
-             src/screens/dial_screens_core_np.c \
-             src/screens/dial_screens_lib_fil.c \
-             src/screens/dial_screens_mod_set.c \
-             src/screens/dial_screens_gam_ovl.c
+             src/ui/dial_icons.c
 
 DISC_SRCS := src/hal/hal_disc.c \
              src/hal/hal_media.c \
@@ -46,14 +41,9 @@ DISC_SRCS := src/hal/hal_disc.c \
              src/core/dial_gestures.c \
              src/core/dial_bt.c \
              src/core/dial_dac.c \
-             src/core/dial_app.c \
              src/ui/dial_assets.c \
              src/ui/dial_draw.c \
-             src/ui/dial_icons.c \
-             src/screens/dial_screens_core_np.c \
-             src/screens/dial_screens_lib_fil.c \
-             src/screens/dial_screens_mod_set.c \
-             src/screens/dial_screens_gam_ovl.c
+             src/ui/dial_icons.c
 
 SIM_BIN   := $(BUILD_DIR)/dialos-sim
 DISC_BIN  := $(BUILD_DIR)/dialos-disc
