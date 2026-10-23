@@ -18,7 +18,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
 #include <AudioToolbox/AudioToolbox.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <ImageIO/ImageIO.h>
@@ -60,9 +60,11 @@ static uint32_t g_now_sample_rate     = 96000;
 static uint32_t g_now_bit_depth       = 24;
 static uint32_t g_now_bitrate_kbps    = 2842;
 static uint32_t g_now_duration_sec    = 330;
+static bool     g_portable_playing    = false;
+static float    g_portable_progress   = 0.41f;
 
 /* ── macOS AudioToolbox Real Streaming State ── */
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
 #define AUDIO_BUF_COUNT  3
 #define AUDIO_BUF_FRAMES 4096
 
@@ -410,7 +412,7 @@ const uint16_t *dial_media_get_album_cover_rgb565(size_t album_idx) {
         }
     }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
     const char *cpath = g_albums[album_idx].cover_path;
     if (!cpath || !*cpath) return NULL;
 
@@ -453,6 +455,7 @@ const uint16_t *dial_media_get_album_cover_rgb565(size_t album_idx) {
     CGImageRelease(img);
     return slot->valid ? slot->pixels : NULL;
 #else
+    (void)g_cover_next_slot;
     return NULL;
 #endif
 }
@@ -531,9 +534,11 @@ bool dial_media_play_track(size_t album_idx, size_t track_idx) {
     strncpy(g_now_artist, alb->artist, sizeof(g_now_artist) - 1);
     snprintf(g_now_album, sizeof(g_now_album), "%s", alb->name);
     strncpy(g_now_filepath, tr->filepath, sizeof(g_now_filepath) - 1);
-    g_now_duration_sec = tr->duration_sec;
+    g_now_duration_sec  = tr->duration_sec;
+    g_portable_playing  = true;
+    g_portable_progress = 0.0f;
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
     start_real_audio_file(tr->filepath, tr->file_size_bytes);
 #endif
     return true;
@@ -545,10 +550,12 @@ bool dial_media_play_file(const char *filepath, const char *title, const char *a
     if (artist) strncpy(g_now_artist, artist, sizeof(g_now_artist) - 1);
     if (album)  strncpy(g_now_album, album, sizeof(g_now_album) - 1);
     strncpy(g_now_filepath, filepath, sizeof(g_now_filepath) - 1);
+    g_portable_playing  = true;
+    g_portable_progress = 0.0f;
 
     struct stat st;
     uint32_t sz = (stat(filepath, &st) == 0) ? (uint32_t)st.st_size : 0u;
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
     return start_real_audio_file(filepath, sz);
 #else
     (void)sz;
@@ -557,7 +564,8 @@ bool dial_media_play_file(const char *filepath, const char *title, const char *a
 }
 
 void dial_media_set_playing(bool playing) {
-#if defined(__APPLE__)
+    g_portable_playing = playing;
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
     pthread_mutex_lock(&g_audio_mtx);
     if (g_aq && g_aq_running) {
         if (playing && g_aq_paused) {
@@ -569,23 +577,22 @@ void dial_media_set_playing(bool playing) {
         }
     }
     pthread_mutex_unlock(&g_audio_mtx);
-#else
-    (void)playing;
 #endif
 }
 
 bool dial_media_get_playing(void) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
     return g_aq_running && !g_aq_paused;
 #else
-    return false;
+    return g_portable_playing;
 #endif
 }
 
 void dial_media_seek_progress(float progress_01) {
     if (progress_01 < 0.0f) progress_01 = 0.0f;
     if (progress_01 > 0.999f) progress_01 = 0.999f;
-#if defined(__APPLE__)
+    g_portable_progress = progress_01;
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
     pthread_mutex_lock(&g_audio_mtx);
     if (g_ext_file && g_aq && g_total_frames > 0) {
         SInt64 target_frame = (SInt64)((double)progress_01 * (double)g_total_frames);
@@ -598,7 +605,7 @@ void dial_media_seek_progress(float progress_01) {
 
 float dial_media_get_progress(uint32_t *out_pos_sec, uint32_t *out_dur_sec) {
     if (out_dur_sec) *out_dur_sec = g_now_duration_sec;
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
     pthread_mutex_lock(&g_audio_mtx);
     if (g_ext_file && g_total_frames > 0) {
         SInt64 cur_frame = g_base_frame;
@@ -613,14 +620,14 @@ float dial_media_get_progress(uint32_t *out_pos_sec, uint32_t *out_dur_sec) {
     }
     pthread_mutex_unlock(&g_audio_mtx);
 #endif
-    if (out_pos_sec) *out_pos_sec = 135;
-    return 0.41f;
+    if (out_pos_sec) *out_pos_sec = (uint32_t)((float)g_now_duration_sec * g_portable_progress + 0.5f);
+    return g_portable_progress;
 }
 
 void dial_media_set_volume(int vol_0_100) {
     if (vol_0_100 < 0) vol_0_100 = 0;
     if (vol_0_100 > 100) vol_0_100 = 100;
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(DIAL_TARGET_DISC)
     g_gain_01 = (float)vol_0_100 / 100.0f;
     pthread_mutex_lock(&g_audio_mtx);
     if (g_aq) {

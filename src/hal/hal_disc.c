@@ -51,8 +51,11 @@ static size_t         g_ipc_tail  = 0;
 static size_t         g_ipc_count = 0;
 
 #if defined(__linux__)
-static mqd_t g_mq_player = (mqd_t)-1;
-static mqd_t g_mq_ui     = (mqd_t)-1;
+static mqd_t                    g_mq_player     = (mqd_t)-1;
+static mqd_t                    g_mq_ui         = (mqd_t)-1;
+static struct fb_var_screeninfo g_fb_vinfo;
+static bool                     g_fb_double_buf = false;
+static uint32_t                 g_fb_page       = 0;
 #endif
 
 bool dial_hal_init(bool headless) {
@@ -67,9 +70,13 @@ bool dial_hal_init(bool headless) {
 #if defined(__linux__)
     g_fb_fd = open(DIAL_DEV_FB0, O_RDWR);
     if (g_fb_fd >= 0) {
-        struct fb_var_screeninfo vinfo;
-        if (ioctl(g_fb_fd, FBIOGET_VSCREENINFO, &vinfo) == 0) {
-            g_fb_bytes = (size_t)vinfo.xres * (size_t)vinfo.yres * (vinfo.bits_per_pixel / 8u);
+        memset(&g_fb_vinfo, 0, sizeof(g_fb_vinfo));
+        if (ioctl(g_fb_fd, FBIOGET_VSCREENINFO, &g_fb_vinfo) == 0) {
+            uint32_t virt_h = (g_fb_vinfo.yres_virtual >= g_fb_vinfo.yres * 2u)
+                                  ? g_fb_vinfo.yres_virtual
+                                  : g_fb_vinfo.yres;
+            g_fb_double_buf = (g_fb_vinfo.yres_virtual >= g_fb_vinfo.yres * 2u);
+            g_fb_bytes = (size_t)g_fb_vinfo.xres * (size_t)virt_h * (g_fb_vinfo.bits_per_pixel / 8u);
         }
         void *map = mmap(NULL, g_fb_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, g_fb_fd, 0);
         if (map != MAP_FAILED) {
@@ -111,6 +118,18 @@ void dial_hal_present(dial_fb_t *fb) {
         fb->rgb565[i] = dial_rgb888_to_rgb565(fb->pixels[i]);
     }
     if (g_fb_mmap) {
+#if defined(__linux__)
+        if (g_fb_double_buf && g_fb_fd >= 0) {
+            uint32_t next_page = g_fb_page ^ 1u;
+            size_t page_offset = (size_t)next_page * total;
+            memcpy(g_fb_mmap + page_offset, fb->rgb565, total * sizeof(uint16_t));
+            g_fb_vinfo.yoffset = next_page * g_fb_vinfo.yres;
+            if (ioctl(g_fb_fd, FBIOPAN_DISPLAY, &g_fb_vinfo) == 0) {
+                g_fb_page = next_page;
+                return;
+            }
+        }
+#endif
         memcpy(g_fb_mmap, fb->rgb565, total * sizeof(uint16_t));
     }
 }
