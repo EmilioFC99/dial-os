@@ -851,9 +851,6 @@ dial_gesture_event_t dial_app_tick(dial_app_t *app, uint32_t now_ms) {
 void dial_app_on_key(dial_app_t *app, const dial_key_event_t *key, const dial_fb_t *fb) {
     if (!app || !key || !key->pressed) return;
 
-    size_t screen_count = 0;
-    const dial_screen_desc_t *screens = dial_screen_get_all(&screen_count);
-
     switch (key->key) {
         case DIAL_KEY_PLAYPAUSE:
             app->is_playing = !app->is_playing;
@@ -908,19 +905,14 @@ void dial_app_on_key(dial_app_t *app, const dial_key_event_t *key, const dial_fb
                 printf("[DialOS] Saved live screenshot -> /tmp/dialos_live.png\n");
             }
             break;
-        case DIAL_KEY_NEXT_SCREEN:
+        case DIAL_KEY_NEXT_SCREEN: {
+            dial_gesture_event_t sev = { .type = DIAL_EVENT_SWIPE_LEFT };
+            handle_disambiguated_event(app, &sev, key->timestamp_ms);
+            break;
+        }
         case DIAL_KEY_PREV_SCREEN: {
-            size_t cur_idx = 0;
-            for (size_t i = 0; i < screen_count; ++i) {
-                if (strcmp(screens[i].id, app->screen_id) == 0) {
-                    cur_idx = i;
-                    break;
-                }
-            }
-            size_t next_idx = (key->key == DIAL_KEY_NEXT_SCREEN)
-                                  ? (cur_idx + 1) % screen_count
-                                  : (cur_idx + screen_count - 1) % screen_count;
-            dial_app_set_screen(app, screens[next_idx].id);
+            dial_gesture_event_t sev = { .type = DIAL_EVENT_SWIPE_RIGHT };
+            handle_disambiguated_event(app, &sev, key->timestamp_ms);
             break;
         }
         default:
