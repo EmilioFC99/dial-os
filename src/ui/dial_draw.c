@@ -808,14 +808,18 @@ void dial_draw_rim_list(dial_fb_t *fb,
 
         bool show_sub = (r->sub && r->sub[0] && (focused || r->always_sub)) || r->playing_eq;
         int title_y = show_sub ? (int)(ry + 11.0f) : (int)(ry + rh * 0.5f - 7.0f);
-        int max_title_w = (int)(rx + rw) - text_x - 56;
+        bool has_right = r->has_toggle || r->has_check || r->has_chev ||
+                         (r->value_text && r->value_text[0]);
+        int right_pad = has_right ? 56 : 16;
+        int max_title_w = (int)(rx + rw) - text_x - right_pad;
 
         if (r->title) {
             if (r->marquee) {
                 dial_draw_text_marquee(fb, r->title, text_x, title_y, max_title_w,
                                        14, pal->text_1, op, tick_ms);
             } else {
-                dial_draw_text(fb, r->title, text_x, title_y, 14, pal->text_1, op, false);
+                draw_text_clipped(fb, r->title, text_x, title_y, 14, pal->text_1, op,
+                                  text_x, text_x + max_title_w);
             }
         }
 
@@ -829,7 +833,8 @@ void dial_draw_rim_list(dial_fb_t *fb,
             }
             dial_draw_text(fb, "Playing", text_x + 22, title_y + 16, 11, pal->moss, op, false);
         } else if (show_sub && r->sub) {
-            dial_draw_text(fb, r->sub, text_x, title_y + 16, 11, pal->text_2, op, false);
+            draw_text_clipped(fb, r->sub, text_x, title_y + 16, 11, pal->text_2, op,
+                              text_x, text_x + max_title_w);
         }
 
         /* Right-hand accessory (chevron, check, toggle, chip, or value text) */

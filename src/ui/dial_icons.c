@@ -337,6 +337,25 @@ static const dial_icon_def_t G_FJALL_ICONS[DIAL_ICON_COUNT] = {
     }, 5 }
 };
 
+static const dial_icon_def_t G_ICON_SEQUENTIAL = {
+    DIAL_ICON_SHUFFLE, "sequential", {
+        "M3 7h18",
+        "M18.5 4.5 21 7l-2.5 2.5",
+        "M3 17h18",
+        "M18.5 14.5 21 17l-2.5 2.5"
+    }, 4
+};
+
+static const dial_icon_def_t G_ICON_REPEAT_ONE = {
+    DIAL_ICON_REPEAT, "repeat_one", {
+        "M4 11.5V9.5A3.5 3.5 0 0 1 7.5 6H19",
+        "M16.5 3.5 19 6l-2.5 2.5",
+        "M20 12.5v2A3.5 3.5 0 0 1 16.5 18H5",
+        "M7.5 20.5 5 18l2.5-2.5",
+        "M11 10.5l1.5-1v5"
+    }, 5
+};
+
 const dial_icon_def_t *dial_icon_get(dial_icon_id_t id) {
     if (id < 0 || id >= DIAL_ICON_COUNT) {
         return &G_FJALL_ICONS[DIAL_ICON_INFO];
@@ -349,6 +368,12 @@ const dial_icon_def_t *dial_icon_by_name(const char *name) {
     /* Strip optional "fjall-" prefix if present */
     if (strncmp(name, "fjall-", 6) == 0) {
         name += 6;
+    }
+    if (strcmp(name, "sequential") == 0) {
+        return &G_ICON_SEQUENTIAL;
+    }
+    if (strcmp(name, "repeat_one") == 0) {
+        return &G_ICON_REPEAT_ONE;
     }
     for (size_t i = 0; i < DIAL_ICON_COUNT; ++i) {
         if (strcmp(G_FJALL_ICONS[i].name, name) == 0) {
@@ -707,17 +732,16 @@ static bool point_in_poly(float px, float py, const icon_poly_t *poly) {
     return inside;
 }
 
-void dial_draw_icon(dial_fb_t *fb,
-                    dial_icon_id_t id,
-                    float x,
-                    float y,
-                    float size_px,
-                    float stroke_w,
-                    uint32_t rgb,
-                    uint8_t alpha) {
-    if (!fb || size_px <= 0.0f || alpha == 0) return;
+static void dial_draw_icon_def(dial_fb_t *fb,
+                               const dial_icon_def_t *def,
+                               float x,
+                               float y,
+                               float size_px,
+                               float stroke_w,
+                               uint32_t rgb,
+                               uint8_t alpha) {
+    if (!fb || !def || size_px <= 0.0f || alpha == 0) return;
 
-    const dial_icon_def_t *def = dial_icon_get(id);
     const float scale = size_px / 24.0f;
     const float base_sw = (stroke_w > 0.0f) ? stroke_w : 1.75f;
     const float half_sw = (base_sw * scale) * 0.5f;
@@ -794,6 +818,17 @@ void dial_draw_icon(dial_fb_t *fb,
     }
 }
 
+void dial_draw_icon(dial_fb_t *fb,
+                    dial_icon_id_t id,
+                    float x,
+                    float y,
+                    float size_px,
+                    float stroke_w,
+                    uint32_t rgb,
+                    uint8_t alpha) {
+    dial_draw_icon_def(fb, dial_icon_get(id), x, y, size_px, stroke_w, rgb, alpha);
+}
+
 void dial_draw_icon_by_name(dial_fb_t *fb,
                             const char *name,
                             float x,
@@ -803,5 +838,5 @@ void dial_draw_icon_by_name(dial_fb_t *fb,
                             uint32_t rgb,
                             uint8_t alpha) {
     const dial_icon_def_t *def = dial_icon_by_name(name);
-    dial_draw_icon(fb, def->id, x, y, size_px, stroke_w, rgb, alpha);
+    dial_draw_icon_def(fb, def, x, y, size_px, stroke_w, rgb, alpha);
 }

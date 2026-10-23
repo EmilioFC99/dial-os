@@ -46,6 +46,6 @@
 /* Performance & Refresh */
 #define DIAL_TARGET_FPS          60
 #define DIAL_MAX_RAM_BYTES       (24 * 1024 * 1024) /* 24.0 MB strict UI footprint cap */
-#define DIAL_VINYL_RPM           33.33f             /* Spinning vinyl speed */
+#define DIAL_VINYL_RPM           16.67f             /* Spinning vinyl speed (50% slower) */
 
 #endif /* DIAL_CONFIG_H */

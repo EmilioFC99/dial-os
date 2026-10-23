@@ -84,10 +84,10 @@ dial_gesture_event_t dial_gesture_fsm_step(dial_gesture_fsm_t *fsm,
         const float inst_vel = (fabsf(d_theta) * 1000.0f) / (float)dt_ms;
 
         if (fsm->state == DIAL_GESTURE_EVALUATING) {
-            /* Check Top Edge Pull-Down (y < 40 -> Control Center CC-01) */
-            if (fsm->start_y < (float)DIAL_TOP_SWIPE_MAX_Y &&
+            /* Check Top Edge Pull-Down (y < 48 -> Control Center CC-01) */
+            if (fsm->start_y < 48.0f &&
                 dy_total > DIAL_SWIPE_MIN_PX &&
-                fabsf(dx_total) < 24.0f) {
+                fabsf(dx_total) < 28.0f) {
                 fsm->state = DIAL_GESTURE_TOP_PULL;
                 fsm->pending_single_tap = false;
                 ev.type = DIAL_EVENT_OPEN_CONTROL_CENTER;
@@ -96,11 +96,20 @@ dial_gesture_event_t dial_gesture_fsm_step(dial_gesture_fsm_t *fsm,
             /* Check Bottom Edge Swipe-Up (y > 320 -> NP-04 Track Details / Unlock) */
             else if (fsm->start_y > (float)DIAL_BOTTOM_SWIPE_MIN_Y &&
                      dy_total < -DIAL_SWIPE_MIN_PX &&
-                     fabsf(dx_total) < 24.0f) {
+                     fabsf(dx_total) < 28.0f) {
                 fsm->state = DIAL_GESTURE_BOTTOM_SWIPE;
                 fsm->pending_single_tap = false;
                 ev.type = DIAL_EVENT_BOTTOM_SWIPE_UP;
                 dial_hal_haptic_tick(15);
+            }
+            /* Check Universal Left-Edge Swipe-Right ("Go Back": start_x < 48px, dx > +45px) */
+            else if (fsm->start_x < 48.0f &&
+                     dx_total > 45.0f &&
+                     dx_total > 1.5f * fabsf(dy_total)) {
+                fsm->state = DIAL_GESTURE_SWIPE_HORIZ;
+                fsm->pending_single_tap = false;
+                ev.type = DIAL_EVENT_SWIPE_RIGHT;
+                dial_hal_haptic_tick(12);
             }
             /* Check NP-01 Direct Inner Vinyl Ring Slide (24px <= start_r <= 54px) */
             else if (fsm->is_now_playing_screen &&
@@ -112,8 +121,9 @@ dial_gesture_event_t dial_gesture_fsm_step(dial_gesture_fsm_t *fsm,
                 fsm->pending_single_tap = false;
                 dial_hal_haptic_tick(8);
             }
-            /* Check Outer Rim Virtual Click-Wheel (start_r >= 150px) */
-            else if (fsm->start_r >= (float)DIAL_RIM_INNER_RADIUS) {
+            /* Check Outer Rim Virtual Click-Wheel (start_r >= 150px, excluding inward left-edge swipe) */
+            else if (fsm->start_r >= (float)DIAL_RIM_INNER_RADIUS &&
+                     !(fsm->start_x < 48.0f && dx_total > 4.0f && dx_total > fabsf(dy_total))) {
                 if (fabsf(fsm->rim_accum_deg + d_theta) >= DIAL_RIM_LOCK_MIN_DEG) {
                     fsm->state = DIAL_GESTURE_RIM_ROTARY;
                     fsm->pending_single_tap = false;
@@ -128,8 +138,12 @@ dial_gesture_event_t dial_gesture_fsm_step(dial_gesture_fsm_t *fsm,
                 fsm->state = DIAL_GESTURE_SWIPE_HORIZ;
                 fsm->pending_single_tap = false;
                 ev.type = (dx_total > 0.0f) ? DIAL_EVENT_SWIPE_RIGHT : DIAL_EVENT_SWIPE_LEFT;
+                dial_hal_haptic_tick(10);
             }
         }
+
+        ev.start_x = fsm->start_x;
+        ev.start_y = fsm->start_y;
 
         /* Handle ongoing locked states */
         if (fsm->state == DIAL_GESTURE_VINYL_RING_SEEK) {

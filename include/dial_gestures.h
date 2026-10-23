@@ -41,6 +41,8 @@ typedef struct {
     dial_event_type_t type;
     float             x;
     float             y;
+    float             start_x;
+    float             start_y;
     float             r;
     float             deg;
     int32_t           detent_steps;   /* +/-1 or +/-3 for DIAL_EVENT_RIM_DETENT */
