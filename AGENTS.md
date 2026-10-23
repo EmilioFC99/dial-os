@@ -84,3 +84,23 @@
    - **Now Playing:** Full-bleed `360×360` spinning vinyl art (`NP-01`) with the `r = 38px` inner seek ring (`0°..359°`), zero text clutter on `NP-01`, single-tap to toggle `NP-02` Quick Actions (floating real song title/artist/album + Favorite/Shuffle/Playlist/Lyrics pucks), double-tap to toggle Play/Pause, swipe left/right for Prev/Next track in the active folder/album queue, swipe up for `NP-04` real audio specs, and right-rim trace (`r > 150px`) for `NP-05` Volume HUD.
    - **Library:** Strict 5-row hub (`Favorites`, `Playlists`, `Artists`, `Albums`, `Genres`), Cover Arc (`LIB-02`), and Track List (`LIB-03`) populated strictly from real scanned audio files (showing a clean empty state if no music is present).
    - **Control Center (`CC-01`) & Settings (`SET` / `MOD`):** `3×2` icon-only `66px` pucks (`wifi`, `bluetooth`, `mode_*`, `gain`, `usb_charge`, `lock`) and settings submenus wired to real hardware state and sysfs controls.
+
+---
+
+## 4. Functional Build Roadmap (Execute Phase-by-Phase)
+
+Build and verify **one vertical slice at a time** in the live macOS simulator (`make sim && ./build/dialos-sim --music ~/Music`) before moving to the next phase:
+
+- [ ] **Phase 1 — Navigation Engine (`nav_stack`), Home Launcher, Real File Browser & Now Playing:**
+  - Implement `nav_stack` with universal **Left-Edge Swipe-Right (`x < 48px` -> `dx > +45px`)** and `<` Back chevron to pop views/folders.
+  - Build **Home Launcher** (6-pebble carousel with real dynamic counts/status).
+  - Build **Files** (real `opendir`/`readdir` folder browser with scrollable rows, folder drill-down, Back to parent folder, long-press file action sheet & `600 ms` hold-to-delete).
+  - Build **Now Playing** connected to `hal_media` (`AudioToolbox` on Mac + `/player` IPC on DISC): playing a file from `Files` opens `Now Playing` (`NP-01` vinyl + `r = 38px` seek ring, `NP-02` single-tap Quick Actions overlay with real metadata, double-tap Play/Pause, swipe prev/next track in folder, `NP-04` swipe-up real track details, `NP-05` right-rim Volume HUD).
+- [ ] **Phase 2 — Real Indexed Music Library (`LIB`):**
+  - Build the `Library` 5-row hub (`Favorites`, `Playlists`, `Artists`, `Albums`, `Genres`), `Albums` Cover Arc, `Artists` list (with fast-spin letter jump), and `Track List` populated 100% from real scanned audio files on disk + persistent Favorites/Playlists file on SD card (and clean `"No Music Found"` empty states when empty).
+- [ ] **Phase 3 — Real System Telemetry, Control Center (`CC`) & Settings (`SET` / `MOD`):**
+  - Implement real hardware/OS telemetry (`localtime()` clock, `/sys/class/power_supply/battery/capacity` & `status`, `statvfs()` disk free space, `/sys/class/backlight/backlight/brightness`, real Wi-Fi `wlan0` & Bluetooth connection state).
+  - Build top pull-down **Control Center** (`3×2` icon pucks + `CC-02` `600 ms` hold-to-unlock Touch Lock shield), **Operating Modes** (`MOD-00..02`), and **Settings** (`Audio / DAC Filter / 10-Band EQ / Gain`, `Display Brightness & Day/Night Theme`, `Wi-Fi`, `Fast-Cache Bluetooth`, `Power / Sleep`, `About`).
+- [ ] **Phase 4 — Polish, Mini-Games (`GAM`) & On-Device Snowsky DISC Verification:**
+  - Add the 3 circular mini-games (`Dial Pong`, `Brick Breaker`, `2048 Radial`) inside the `Arcade` app.
+  - Build `macos/vendor/mq_ui` (`make disc-mipsel`), package with `./dialos-mac build`, and verify on physical Snowsky DISC hardware.
