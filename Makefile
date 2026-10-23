@@ -31,6 +31,7 @@ CORE_SRCS := src/hal/hal_sdl2.c \
              src/core/dial_gestures.c \
              src/core/dial_bt.c \
              src/core/dial_dac.c \
+             src/core/dial_app.c \
              src/ui/dial_assets.c \
              src/ui/dial_draw.c \
              src/ui/dial_icons.c
@@ -41,6 +42,7 @@ DISC_SRCS := src/hal/hal_disc.c \
              src/core/dial_gestures.c \
              src/core/dial_bt.c \
              src/core/dial_dac.c \
+             src/core/dial_app.c \
              src/ui/dial_assets.c \
              src/ui/dial_draw.c \
              src/ui/dial_icons.c
@@ -54,6 +56,7 @@ TEST_DRW  := $(BUILD_DIR)/test_draw_primitives
 TEST_BT   := $(BUILD_DIR)/test_bt_cache
 TEST_DAC  := $(BUILD_DIR)/test_dac_relay
 TEST_DISC := $(BUILD_DIR)/test_hal_disc
+TEST_P1   := $(BUILD_DIR)/test_phase1_app
 
 .PHONY: all sim disc-check disc-mipsel fw docker-disc assets test clean
 
@@ -111,12 +114,16 @@ $(TEST_DAC): $(CORE_SRCS) tests/test_dac_relay.c | $(BUILD_DIR)
 $(TEST_DISC): $(DISC_SRCS) tests/test_hal_disc.c | $(BUILD_DIR)
 	$(CC) -std=c11 -Wall -Wextra -Werror -Iinclude -DDIAL_TARGET_DISC $(SAN_FLAGS) $(DISC_SRCS) tests/test_hal_disc.c -o $(TEST_DISC) $(DISC_LIBS)
 
-test: $(TEST_POL) $(TEST_DRW) $(TEST_BT) $(TEST_DAC) $(TEST_DISC) $(SIM_BIN) $(FW_IMG)
+$(TEST_P1): $(CORE_SRCS) tests/test_phase1_app.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) $(SAN_FLAGS) $(CORE_SRCS) tests/test_phase1_app.c -o $(TEST_P1) $(LIBS)
+
+test: $(TEST_POL) $(TEST_DRW) $(TEST_BT) $(TEST_DAC) $(TEST_DISC) $(TEST_P1) $(SIM_BIN) $(FW_IMG)
 	./$(TEST_POL)
 	./$(TEST_DRW)
 	./$(TEST_BT)
 	./$(TEST_DAC)
 	./$(TEST_DISC)
+	./$(TEST_P1)
 	./$(FW_TOOL) --verify $(FW_IMG)
 
 clean:

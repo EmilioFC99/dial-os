@@ -10,6 +10,9 @@
 #include "dial_draw.h"
 #include "dial_icons.h"
 #include "dial_media.h"
+#include "dial_app.h"
+
+static dial_app_t g_app;
 
 int main(int argc, char **argv) {
 #if defined(DIAL_TARGET_DISC) && defined(__linux__)
@@ -50,24 +53,27 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (!headless) {
 #if defined(DIAL_TARGET_DISC)
-        const char *target_music = music_dir ? music_dir : "/mnt/mmcblk0p1";
+    const char *target_music = music_dir ? music_dir : "/mnt/mmcblk0p1";
 #else
-        const char *home = getenv("HOME");
-        char default_music[512];
+    const char *home = getenv("HOME");
+    char default_music[512];
+    if (access("/Volumes/MUSIC", R_OK) == 0) {
+        snprintf(default_music, sizeof(default_music), "/Volumes/MUSIC");
+    } else {
         snprintf(default_music, sizeof(default_music), "%s/Music", home ? home : ".");
-        const char *target_music = music_dir ? music_dir : default_music;
+    }
+    const char *target_music = music_dir ? music_dir : default_music;
 #endif
+    if (!headless || music_dir) {
         dial_media_scan_root(target_music);
-    } else if (music_dir) {
-        dial_media_scan_root(music_dir);
     }
 
+    dial_app_init(&g_app, mode);
+
     dial_fb_t *fb = dial_hal_get_framebuffer();
-    const dial_palette_t *pal = dial_get_palette(mode);
-    dial_draw_clear(fb, pal->bg);
-    dial_draw_circle_mask(fb);
+    dial_app_tick(&g_app, dial_hal_ticks_ms());
+    dial_app_render(&g_app, fb);
     dial_hal_present(fb);
 
     if (headless) {
@@ -76,15 +82,31 @@ int main(int argc, char **argv) {
         return (rc == 0) ? 0 : 2;
     }
 
-    while (true) {
-        dial_touch_event_t touch;
-        dial_key_event_t   key;
-        bool has_touch = false, has_key = false;
-        if (!dial_hal_poll_events(&touch, &has_touch, &key, &has_key)) {
-            break;
+    bool running = true;
+    while (running) {
+        /* Drain all pending input events for zero-latency touch/mouse/key response */
+        while (true) {
+            dial_touch_event_t touch;
+            dial_key_event_t   key;
+            bool has_touch = false, has_key = false;
+            if (!dial_hal_poll_events(&touch, &has_touch, &key, &has_key)) {
+                running = false;
+                break;
+            }
+            if (!has_touch && !has_key) {
+                break;
+            }
+            if (has_touch) {
+                dial_app_handle_touch(&g_app, &touch);
+            }
+            if (has_key) {
+                dial_app_handle_key(&g_app, &key);
+            }
         }
-        (void)touch;
-        (void)key;
+        if (!running) break;
+
+        dial_app_tick(&g_app, dial_hal_ticks_ms());
+        dial_app_render(&g_app, fb);
         dial_hal_present(fb);
         dial_hal_delay_ms(16);
     }
