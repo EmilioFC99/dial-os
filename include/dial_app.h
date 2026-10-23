@@ -46,9 +46,21 @@ typedef struct {
     /* Modes, Settings & Arcade State (MOD-00..06, SET-01..07, GAM-01..04) */
     int                mode_picker_focus;   /* 0..5 focused mode puck on MOD-00 */
     int                settings_focus_idx;  /* 0..4 focused category row on SET-01 */
+    int                audio_focus_idx;     /* 0..4 focused row on SET-02 */
+    bool               gapless_on;          /* Gapless toggle on SET-02 */
     int                dac_filter_idx;      /* 0..4 applied CS43131 DAC filter on SET-03 */
+    int                eq_preset_idx;       /* 0=Acoustic, 1=Vocal, 2=Flat, 3=Custom on SET-04 */
     int                eq_focus_band;       /* 0..9 focused Parametric EQ band on SET-04 */
+    float              eq_band_norm[10];    /* Normalized band heights [0.10..0.90] on SET-04 */
+    int                wifi_focus_idx;      /* 0..4 focused row on SET-06 */
+    int                bt_focus_idx;        /* 0..4 focused row on SET-07 */
     float              pong_paddle_deg;     /* Paddle center angle on GAM-02 Dial Pong */
+
+    /* Live Non-Blocking Feedback Toast Overlay (auto-dismisses after 1600 ms) */
+    char               toast_text[64];
+    char               toast_icon[24];
+    uint32_t           toast_tone;          /* 24-bit Fjäll palette color (moss/fjord/cloudberry/lingon) */
+    uint32_t           toast_until_ms;
 
     /* Embedded Gesture Disambiguation FSM */
     dial_gesture_fsm_t fsm;
@@ -62,6 +74,13 @@ void dial_app_init(dial_app_t *app, const char *initial_screen_id, dial_mode_t m
 
 /* Switch active screen and configure gesture FSM mode */
 void dial_app_set_screen(dial_app_t *app, const char *screen_id);
+
+/* Trigger a non-blocking real-time feedback toast pill over the active screen */
+void dial_app_show_toast(dial_app_t *app,
+                         const char *text,
+                         const char *icon_name,
+                         uint32_t tone,
+                         uint32_t now_ms);
 
 /* Feed a touch down/move/up event into the live UI state machine */
 dial_gesture_event_t dial_app_on_touch(dial_app_t *app, const dial_touch_event_t *touch);

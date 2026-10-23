@@ -1,6 +1,8 @@
 #include "dial_app.h"
 #include "dial_screens.h"
 #include "dial_media.h"
+#include "dial_ipc.h"
+#include "dial_dac.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,6 +36,20 @@ void dial_app_set_screen(dial_app_t *app, const char *screen_id) {
 
     app->fsm.is_now_playing_screen = is_np01_screen(screen_id);
     app->fsm.current_seek_deg      = app->seek_progress * 360.0f;
+}
+
+void dial_app_show_toast(dial_app_t *app,
+                         const char *text,
+                         const char *icon_name,
+                         uint32_t tone,
+                         uint32_t now_ms) {
+    if (!app || !text) return;
+    memset(app->toast_text, 0, sizeof(app->toast_text));
+    strncpy(app->toast_text, text, sizeof(app->toast_text) - 1);
+    memset(app->toast_icon, 0, sizeof(app->toast_icon));
+    strncpy(app->toast_icon, (icon_name && icon_name[0]) ? icon_name : "check", sizeof(app->toast_icon) - 1);
+    app->toast_tone     = tone;
+    app->toast_until_ms = (now_ms > 0 ? now_ms : 1u) + 1600u;
 }
 
 void dial_app_init(dial_app_t *app, const char *initial_screen_id, dial_mode_t mode) {
@@ -76,9 +92,21 @@ void dial_app_init(dial_app_t *app, const char *initial_screen_id, dial_mode_t m
 
     app->mode_picker_focus   = 0; /* Focus mode 0 ("Player") on MOD-00 */
     app->settings_focus_idx  = 2; /* Focus row 2 ("Bluetooth") on SET-01 */
+    app->audio_focus_idx     = 1; /* Focus row 1 ("Gain") on SET-02 */
     app->dac_filter_idx      = 0; /* Applied filter 0 ("Fast roll-off · linear") on SET-03 */
-    app->eq_focus_band       = 4; /* Focus band 4 ("1k") on SET-04 */
+    app->gapless_on          = true;
+    app->eq_preset_idx       = 0; /* 0 = "Nordic Warm" on SET-04 */
+    app->eq_focus_band       = 2; /* Focus band 2 ("125 Hz · +2.4 dB") on SET-04 */
+    static const float kDefaultEq[10] = {
+        0.52f, 0.40f, 0.32f, 0.55f, 0.62f, 0.58f, 0.44f, 0.38f, 0.46f, 0.54f
+    };
+    for (int i = 0; i < 10; ++i) {
+        app->eq_band_norm[i] = kDefaultEq[i];
+    }
+    app->wifi_focus_idx      = 1; /* Focus row 1 ("Studio 5G") on SET-06 */
+    app->bt_focus_idx        = 1; /* Focus row 1 ("WH-1000XM5") on SET-07 */
     app->pong_paddle_deg     = 202.0f; /* Default 182°..222° paddle center on GAM-02 */
+    app->toast_until_ms      = 0;
 
     dial_gesture_fsm_init(&app->fsm, is_np01_screen(init_id), 330000u);
     app->fsm.current_seek_deg = app->seek_progress * 360.0f;
@@ -142,12 +170,22 @@ static void handle_disambiguated_event(dial_app_t *app,
         } else if (ev->type == DIAL_EVENT_PLAY_PAUSE) {
             app->is_playing = !app->is_playing;
             dial_media_set_playing(app->is_playing);
+            dial_hal_send_ipc(DIAL_CMD_PLAY_PAUSE, app->is_playing ? "play" : "pause");
+            dial_app_show_toast(app, app->is_playing ? "Playback · Playing" : "Playback · Paused",
+                                app->is_playing ? "play" : "pause",
+                                dial_get_palette(app->mode)->moss, now_ms);
         } else if (ev->type == DIAL_EVENT_SWIPE_LEFT) {
             dial_media_next_track();
             app->is_playing = true;
+            dial_hal_send_ipc(DIAL_CMD_NEXT_TRACK, "next");
+            dial_app_show_toast(app, "Next track", "skip_fwd",
+                                dial_get_palette(app->mode)->fjord, now_ms);
         } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
             dial_media_prev_track();
             app->is_playing = true;
+            dial_hal_send_ipc(DIAL_CMD_PREV_TRACK, "prev");
+            dial_app_show_toast(app, "Previous track", "skip_back",
+                                dial_get_palette(app->mode)->fjord, now_ms);
         } else if (ev->type == DIAL_EVENT_NP_QUICK_ACTIONS) {
             /* Check if bottom '^' chevron (y >= 312) was tapped -> open NP-04 */
             if (ev->y >= 312.0f && fabsf(ev->x - 180.0f) <= 32.0f) {
@@ -160,6 +198,9 @@ static void handle_disambiguated_event(dial_app_t *app,
         } else if (ev->type == DIAL_EVENT_RIM_DETENT) {
             app->volume = clamp_int(app->volume + ev->detent_steps * 2, 0, 100);
             dial_media_set_volume(app->volume);
+            char vbuf[16];
+            snprintf(vbuf, sizeof(vbuf), "%d", app->volume);
+            dial_hal_send_ipc(DIAL_CMD_SET_VOLUME, vbuf);
             app->volume_hud_until_ms = now_ms + 800u;
             dial_app_set_screen(app, "NP-05");
         }
@@ -176,11 +217,18 @@ static void handle_disambiguated_event(dial_app_t *app,
                 dial_polar_to_xy(angles[i], (float)DIAL_QA_ARC_RADIUS, &px, &py);
                 if (hypotf(ev->x - px, ev->y - py) <= 28.0f) {
                     dial_hal_haptic_tick(12);
+                    const dial_palette_t *pal = dial_get_palette(app->mode);
                     if (i == 0) {
                         app->is_favorited = !app->is_favorited;
                         dial_hal_send_ipc(DIAL_CMD_FAVORITE, app->is_favorited ? "1" : "0");
+                        dial_app_show_toast(app,
+                                            app->is_favorited ? "Added to Favorites" : "Removed from Favorites",
+                                            "heart", pal->lingon, now_ms);
                     } else if (i == 1) {
                         app->is_shuffled = !app->is_shuffled;
+                        dial_app_show_toast(app,
+                                            app->is_shuffled ? "Shuffle · Enabled" : "Shuffle · Off",
+                                            "shuffle", pal->moss, now_ms);
                     } else if (i == 2) {
                         dial_app_set_screen(app, "LIB-01");
                     } else if (i == 3) {
@@ -207,6 +255,10 @@ static void handle_disambiguated_event(dial_app_t *app,
     if (strcmp(scr, "NP-05") == 0) {
         if (ev->type == DIAL_EVENT_RIM_DETENT) {
             app->volume = clamp_int(app->volume + ev->detent_steps * 2, 0, 100);
+            dial_media_set_volume(app->volume);
+            char vbuf[16];
+            snprintf(vbuf, sizeof(vbuf), "%d", app->volume);
+            dial_hal_send_ipc(DIAL_CMD_SET_VOLUME, vbuf);
             app->volume_hud_until_ms = now_ms + 800u;
         } else if (ev->type == DIAL_EVENT_TAP) {
             app->volume_hud_until_ms = 0;
@@ -219,18 +271,47 @@ static void handle_disambiguated_event(dial_app_t *app,
     if (strcmp(scr, "CC-01") == 0) {
         const float col_cx[3] = { 93.0f, 180.0f, 267.0f };
         const float row_cy[2] = { 131.0f, 219.0f };
+        const dial_palette_t *pal = dial_get_palette(app->mode);
         if (ev->type == DIAL_EVENT_TAP) {
             for (int r = 0; r < 2; ++r) {
                 for (int c = 0; c < 3; ++c) {
                     if (hypotf(ev->x - col_cx[c], ev->y - row_cy[r]) <= 34.0f) {
                         dial_hal_haptic_tick(12);
                         int idx = r * 3 + c;
-                        if (idx == 0)      app->wifi_on = !app->wifi_on;
-                        else if (idx == 1) app->bt_on   = !app->bt_on;
-                        else if (idx == 2) app->active_mode_idx = (app->active_mode_idx + 1) % 6;
-                        else if (idx == 3) app->high_gain = !app->high_gain;
-                        else if (idx == 4) app->usb_charge = !app->usb_charge;
-                        else if (idx == 5) {
+                        if (idx == 0) {
+                            app->wifi_on = !app->wifi_on;
+                            dial_app_show_toast(app, app->wifi_on ? "Wi-Fi · Studio 5G" : "Wi-Fi · Off",
+                                                "wifi", pal->fjord, now_ms);
+                        } else if (idx == 1) {
+                            app->bt_on = !app->bt_on;
+                            dial_hal_send_ipc(DIAL_CMD_BT_RECONNECT, app->bt_on ? "WH-1000XM5" : "off");
+                            dial_app_show_toast(app, app->bt_on ? "BT · WH-1000XM5 (LDAC)" : "Bluetooth · Off",
+                                                "bluetooth", pal->fjord, now_ms);
+                        } else if (idx == 2) {
+                            static const char *const kModeNames[6] = {
+                                "Mode · Player", "Mode · USB DAC", "Mode · BT Audio",
+                                "Mode · AirPlay", "Mode · HibyLink", "Mode · Storage"
+                            };
+                            app->active_mode_idx = (app->active_mode_idx + 1) % 6;
+                            dial_app_show_toast(app, kModeNames[app->active_mode_idx],
+                                                "disc", pal->moss, now_ms);
+                        } else if (idx == 3) {
+                            app->high_gain = !app->high_gain;
+                            dial_dac_state_t dac;
+                            dial_dac_init(&dac, (uint8_t)app->volume, !app->high_gain);
+                            dial_dac_request_gain(&dac, app->high_gain, now_ms);
+                            dial_dac_tick(&dac, now_ms + 10u);
+                            dial_dac_tick(&dac, now_ms + 28u);
+                            dial_app_show_toast(app,
+                                                app->high_gain ? "CS43131 · High Gain (2.0V)" : "CS43131 · Low Gain (1.0V)",
+                                                "gain", pal->cloudberry, now_ms);
+                        } else if (idx == 4) {
+                            app->usb_charge = !app->usb_charge;
+                            dial_hal_send_ipc(DIAL_CMD_USB_CHARGE, app->usb_charge ? "on" : "off");
+                            dial_app_show_toast(app,
+                                                app->usb_charge ? "USB Host Charge · On" : "USB Host Charge · Off",
+                                                "bolt", pal->moss, now_ms);
+                        } else if (idx == 5) {
                             app->touch_locked = true;
                             app->unlock_hold_progress = 0.0f;
                             dial_app_set_screen(app, "CC-02");
@@ -256,6 +337,10 @@ static void handle_disambiguated_event(dial_app_t *app,
         } else if (ev->type == DIAL_EVENT_RIM_DETENT) {
             if (ev->x >= 180.0f) {
                 app->volume = clamp_int(app->volume + ev->detent_steps * 2, 0, 100);
+                dial_media_set_volume(app->volume);
+                char vbuf[16];
+                snprintf(vbuf, sizeof(vbuf), "%d", app->volume);
+                dial_hal_send_ipc(DIAL_CMD_SET_VOLUME, vbuf);
             } else {
                 app->brightness = clamp_int(app->brightness + ev->detent_steps * 3, 5, 100);
             }
@@ -422,6 +507,9 @@ static void handle_disambiguated_event(dial_app_t *app,
         if (ev->type == DIAL_EVENT_HOLD_600MS && ev->x >= 165.0f && ev->y >= 200.0f && ev->y <= 290.0f) {
             app->file_deleted = true;
             app->delete_hold_progress = 1.0f;
+            dial_hal_send_ipc(DIAL_CMD_DELETE_FILE, "03 Teardrop.flac");
+            dial_app_show_toast(app, "Deleted · 03 Teardrop.flac", "trash",
+                                dial_get_palette(app->mode)->lingon, now_ms);
             dial_app_set_screen(app, "FIL-01");
         } else if (ev->type == DIAL_EVENT_TAP && ev->x < 165.0f && ev->y >= 200.0f && ev->y <= 290.0f) {
             app->file_deleted = false;
@@ -475,6 +563,10 @@ static void handle_disambiguated_event(dial_app_t *app,
             dial_app_set_screen(app, "MOD-00");
         } else if (ev->type == DIAL_EVENT_TAP && strcmp(scr, "MOD-02") == 0) {
             app->usb_charge = !app->usb_charge;
+            dial_hal_send_ipc(DIAL_CMD_USB_CHARGE, app->usb_charge ? "on" : "off");
+            dial_app_show_toast(app,
+                                app->usb_charge ? "USB Host Power · Enabled" : "USB Host Power · Isolated",
+                                "bolt", dial_get_palette(app->mode)->moss, now_ms);
         }
         return;
     }
@@ -494,40 +586,169 @@ static void handle_disambiguated_event(dial_app_t *app,
         return;
     }
     if (strcmp(scr, "SET-02") == 0) {
-        if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+        const dial_palette_t *pal = dial_get_palette(app->mode);
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->audio_focus_idx = clamp_int(app->audio_focus_idx + ev->detent_steps, 0, 4);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
             dial_app_set_screen(app, "SET-01");
         } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
-            if (ev->y < 115.0f) {
+            int row = app->audio_focus_idx;
+            if (ev->y < 115.0f)      row = 0;
+            else if (ev->y < 170.0f) row = 1;
+            else if (ev->y < 225.0f) row = 2;
+            else if (ev->y < 280.0f) row = 3;
+            else                     row = 4;
+            app->audio_focus_idx = row;
+
+            if (row == 0) {
                 dial_app_set_screen(app, "SET-03");
-            } else if (ev->y < 170.0f) {
+            } else if (row == 1) {
                 app->high_gain = !app->high_gain;
-            } else if (ev->y < 220.0f) {
+                dial_dac_state_t dac;
+                dial_dac_init(&dac, (uint8_t)app->volume, !app->high_gain);
+                dial_dac_request_gain(&dac, app->high_gain, now_ms);
+                dial_dac_tick(&dac, now_ms + 10u);
+                dial_dac_tick(&dac, now_ms + 28u);
+                dial_app_show_toast(app,
+                                    app->high_gain ? "CS43131 · High Gain (2.0 Vrms)" : "CS43131 · Low Gain (1.0 Vrms)",
+                                    "gain", pal->cloudberry, now_ms);
+            } else if (row == 2) {
                 dial_app_set_screen(app, "SET-04");
+            } else if (row == 3) {
+                app->gapless_on = !app->gapless_on;
+                dial_app_show_toast(app,
+                                    app->gapless_on ? "Gapless playback · On" : "Gapless playback · Off",
+                                    "check", pal->moss, now_ms);
+            } else if (row == 4) {
+                dial_app_show_toast(app, "L/R Balance · 0.0 dB Center", "sliders", pal->fjord, now_ms);
             }
         }
         return;
     }
     if (strcmp(scr, "SET-03") == 0) {
+        static const char *const kFilterNames[5] = {
+            "Fast roll-off · linear",
+            "Slow roll-off · linear",
+            "Fast roll-off · min phase",
+            "Slow roll-off · min phase",
+            "NOS · non-oversampling"
+        };
         if (ev->type == DIAL_EVENT_RIM_DETENT) {
             app->dac_filter_idx = clamp_int(app->dac_filter_idx + ev->detent_steps, 0, 4);
-        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT || ev->type == DIAL_EVENT_TAP) {
+            char fbuf[8];
+            snprintf(fbuf, sizeof(fbuf), "%d", app->dac_filter_idx);
+            dial_hal_send_ipc(DIAL_CMD_DAC_FILTER, fbuf);
+            dial_app_show_toast(app, kFilterNames[app->dac_filter_idx],
+                                "wave", dial_get_palette(app->mode)->moss, now_ms);
+        } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
+            int row = clamp_int((int)((ev->y - 64.0f) / 52.0f), 0, 4);
+            app->dac_filter_idx = row;
+            char fbuf[8];
+            snprintf(fbuf, sizeof(fbuf), "%d", app->dac_filter_idx);
+            dial_hal_send_ipc(DIAL_CMD_DAC_FILTER, fbuf);
+            dial_app_show_toast(app, kFilterNames[app->dac_filter_idx],
+                                "wave", dial_get_palette(app->mode)->moss, now_ms);
             dial_app_set_screen(app, "SET-02");
-        }
-        return;
-    }
-    if (strcmp(scr, "SET-04") == 0) {
-        if (ev->type == DIAL_EVENT_RIM_DETENT) {
-            app->eq_focus_band = clamp_int(app->eq_focus_band + ev->detent_steps, 0, 9);
         } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
             dial_app_set_screen(app, "SET-02");
         }
         return;
     }
-    if (strcmp(scr, "SET-05") == 0 || strcmp(scr, "SET-06") == 0 || strcmp(scr, "SET-07") == 0) {
-        if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+    if (strcmp(scr, "SET-04") == 0) {
+        static const char *const kFreqs[10] = {
+            "31 Hz", "62 Hz", "125 Hz", "250 Hz", "500 Hz",
+            "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz"
+        };
+        static const float kPresets[4][10] = {
+            { 0.52f, 0.40f, 0.32f, 0.55f, 0.62f, 0.58f, 0.44f, 0.38f, 0.46f, 0.54f }, /* Nordic Warm */
+            { 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f, 0.50f }, /* Studio Flat */
+            { 0.25f, 0.28f, 0.36f, 0.50f, 0.54f, 0.52f, 0.48f, 0.44f, 0.40f, 0.42f }, /* Fjord Bass  */
+            { 0.56f, 0.54f, 0.50f, 0.44f, 0.36f, 0.32f, 0.34f, 0.40f, 0.46f, 0.50f }  /* Vocal Air   */
+        };
+        static const char *const kPresetLabels[4] = {
+            "EQ · Nordic Warm", "EQ · Studio Flat", "EQ · Fjord Bass", "EQ · Vocal Air"
+        };
+        const dial_palette_t *pal = dial_get_palette(app->mode);
+
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            int b = clamp_int(app->eq_focus_band, 0, 9);
+            float v = app->eq_band_norm[b] - (float)ev->detent_steps * 0.04f;
+            if (v < 0.10f) v = 0.10f;
+            if (v > 0.90f) v = 0.90f;
+            app->eq_band_norm[b] = v;
+            float db = (0.50f - v) * 12.0f;
+            char msg[48];
+            snprintf(msg, sizeof(msg), "%s · %+.1f dB", kFreqs[b], db);
+            dial_hal_send_ipc(DIAL_CMD_EQ_PRESET, msg);
+            dial_app_show_toast(app, msg, "eq", pal->moss, now_ms);
+        } else if (ev->type == DIAL_EVENT_TAP) {
+            if (ev->y < 98.0f) {
+                app->eq_preset_idx = (app->eq_preset_idx + 1) % 4;
+                for (int i = 0; i < 10; ++i) {
+                    app->eq_band_norm[i] = kPresets[app->eq_preset_idx][i];
+                }
+                dial_hal_send_ipc(DIAL_CMD_EQ_PRESET, kPresetLabels[app->eq_preset_idx]);
+                dial_app_show_toast(app, kPresetLabels[app->eq_preset_idx], "eq", pal->moss, now_ms);
+            } else if (ev->y >= 165.0f && ev->y <= 285.0f && ev->x >= 48.0f && ev->x <= 312.0f) {
+                int band = clamp_int((int)((ev->x - 54.0f) / 25.0f), 0, 9);
+                app->eq_focus_band = band;
+                float norm = (ev->y - 178.0f) / 82.0f;
+                if (norm < 0.10f) norm = 0.10f;
+                if (norm > 0.90f) norm = 0.90f;
+                app->eq_band_norm[band] = norm;
+                float db = (0.50f - norm) * 12.0f;
+                char msg[48];
+                snprintf(msg, sizeof(msg), "%s · %+.1f dB", kFreqs[band], db);
+                dial_hal_send_ipc(DIAL_CMD_EQ_PRESET, msg);
+                dial_app_show_toast(app, msg, "eq", pal->moss, now_ms);
+            }
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "SET-02");
+        }
+        return;
+    }
+    if (strcmp(scr, "SET-05") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->brightness = clamp_int(app->brightness + ev->detent_steps * 4, 5, 100);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
             dial_app_set_screen(app, "SET-01");
-        } else if (ev->type == DIAL_EVENT_TAP && strcmp(scr, "SET-05") == 0) {
+        } else if (ev->type == DIAL_EVENT_TAP) {
             app->mode = (app->mode == DIAL_MODE_NIGHT) ? DIAL_MODE_DAY : DIAL_MODE_NIGHT;
+            dial_app_show_toast(app,
+                                app->mode == DIAL_MODE_NIGHT ? "Theme · Polar Night" : "Theme · Birch Day",
+                                "sun", dial_get_palette(app->mode)->moss, now_ms);
+        }
+        return;
+    }
+    if (strcmp(scr, "SET-06") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->wifi_focus_idx = clamp_int(app->wifi_focus_idx + ev->detent_steps, 0, 4);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "SET-01");
+        } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
+            app->wifi_on = !app->wifi_on;
+            dial_app_show_toast(app,
+                                app->wifi_on ? "Wi-Fi · Connected (Studio 5G)" : "Wi-Fi · Disabled",
+                                "wifi", dial_get_palette(app->mode)->fjord, now_ms);
+        }
+        return;
+    }
+    if (strcmp(scr, "SET-07") == 0) {
+        if (ev->type == DIAL_EVENT_RIM_DETENT) {
+            app->bt_focus_idx = clamp_int(app->bt_focus_idx + ev->detent_steps, 0, 4);
+        } else if (ev->type == DIAL_EVENT_SWIPE_RIGHT) {
+            dial_app_set_screen(app, "SET-01");
+        } else if (ev->type == DIAL_EVENT_TAP && ev->r < 140.0f) {
+            if (ev->y < 115.0f) {
+                app->bt_on = !app->bt_on;
+                dial_app_show_toast(app,
+                                    app->bt_on ? "Bluetooth · Enabled" : "Bluetooth · Disabled",
+                                    "bluetooth", dial_get_palette(app->mode)->fjord, now_ms);
+            } else {
+                dial_hal_send_ipc(DIAL_CMD_BT_RECONNECT, "WH-1000XM5");
+                dial_app_show_toast(app, "Fast-Cache · WH-1000XM5 (LDAC 990)",
+                                    "headphones", dial_get_palette(app->mode)->moss, now_ms);
+            }
         }
         return;
     }
@@ -608,6 +829,11 @@ dial_gesture_event_t dial_app_tick(dial_app_t *app, uint32_t now_ms) {
         dial_app_set_screen(app, "NP-01");
     }
 
+    /* Auto-dismiss non-blocking live toast pill */
+    if (app->toast_until_ms > 0 && now_ms >= app->toast_until_ms) {
+        app->toast_until_ms = 0;
+    }
+
     /* Sync real hardware/CoreAudio playback progress onto r=38px vinyl seek ring */
     if (dial_media_is_loaded() && app->is_playing && !app->fsm.touch_active) {
         float live_prog = dial_media_get_progress(NULL, NULL);
@@ -633,10 +859,18 @@ void dial_app_on_key(dial_app_t *app, const dial_key_event_t *key, const dial_fb
             app->is_playing = !app->is_playing;
             dial_media_set_playing(app->is_playing);
             dial_hal_send_ipc(DIAL_CMD_PLAY_PAUSE, app->is_playing ? "play" : "pause");
+            dial_app_show_toast(app, app->is_playing ? "Playback · Playing" : "Playback · Paused",
+                                app->is_playing ? "play" : "pause",
+                                dial_get_palette(app->mode)->moss, key->timestamp_ms);
             break;
         case DIAL_KEY_VOLUP:
             app->volume = clamp_int(app->volume + 2, 0, 100);
             dial_media_set_volume(app->volume);
+            {
+                char vbuf[16];
+                snprintf(vbuf, sizeof(vbuf), "%d", app->volume);
+                dial_hal_send_ipc(DIAL_CMD_SET_VOLUME, vbuf);
+            }
             if (strcmp(app->screen_id, "NP-01") == 0 || strcmp(app->screen_id, "NP-05") == 0) {
                 app->volume_hud_until_ms = key->timestamp_ms + 800u;
                 dial_app_set_screen(app, "NP-05");
@@ -645,6 +879,11 @@ void dial_app_on_key(dial_app_t *app, const dial_key_event_t *key, const dial_fb
         case DIAL_KEY_VOLDOWN:
             app->volume = clamp_int(app->volume - 2, 0, 100);
             dial_media_set_volume(app->volume);
+            {
+                char vbuf[16];
+                snprintf(vbuf, sizeof(vbuf), "%d", app->volume);
+                dial_hal_send_ipc(DIAL_CMD_SET_VOLUME, vbuf);
+            }
             if (strcmp(app->screen_id, "NP-01") == 0 || strcmp(app->screen_id, "NP-05") == 0) {
                 app->volume_hud_until_ms = key->timestamp_ms + 800u;
                 dial_app_set_screen(app, "NP-05");
@@ -659,6 +898,9 @@ void dial_app_on_key(dial_app_t *app, const dial_key_event_t *key, const dial_fb
             break;
         case DIAL_KEY_TOGGLE_THEME:
             app->mode = (app->mode == DIAL_MODE_NIGHT) ? DIAL_MODE_DAY : DIAL_MODE_NIGHT;
+            dial_app_show_toast(app,
+                                app->mode == DIAL_MODE_NIGHT ? "Theme · Polar Night" : "Theme · Birch Day",
+                                "sun", dial_get_palette(app->mode)->moss, key->timestamp_ms);
             break;
         case DIAL_KEY_SCREENSHOT:
             if (fb) {
@@ -699,5 +941,18 @@ void dial_app_render(dial_app_t *app, dial_fb_t *fb, uint32_t tick_ms) {
         desc->render(fb, pal, tick_ms);
     } else {
         dial_screen_render_by_id(fb, "NP-01", app->mode, tick_ms);
+    }
+
+    /* Render non-blocking Fjäll live feedback toast banner when active */
+    if (app->toast_until_ms > 0 && app->toast_text[0] != '\0') {
+        uint32_t tone = app->toast_tone ? app->toast_tone : pal->moss;
+        dial_draw_round_rect(fb, 48.0f, 38.0f, 264.0f, 36.0f, 18.0f,
+                             pal->surface_2, 245, 1.0f, tone, 175);
+        dial_draw_circle_fill(fb, 68.0f, 56.0f, 11.0f,
+                              dial_color_lerp(pal->surface_2, tone, 60), 255);
+        dial_draw_icon_by_name(fb, app->toast_icon[0] ? app->toast_icon : "check",
+                               61.0f, 49.0f, 14.0f, 1.8f, tone, 255);
+        dial_draw_text(fb, app->toast_text, 86, 49, 12, pal->text_1, 255, false);
+        dial_draw_circle_mask(fb);
     }
 }

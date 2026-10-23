@@ -97,4 +97,31 @@ size_t dial_hal_get_ipc_count(void);
 /* Memory budget monitor (must remain <= DIAL_MAX_RAM_BYTES = 24.0 MB) */
 size_t dial_hal_get_ram_usage_bytes(void);
 
+/* Snowsky DISC 180-degree mounted panel XRGB8888 blit & cst816t touch coordinate inversion */
+static inline void dial_disc_blit_rotated_xrgb8888(uint32_t *dst,
+                                                   uint32_t stride_px,
+                                                   const uint32_t *src,
+                                                   uint32_t w,
+                                                   uint32_t h) {
+    if (!dst || !src || stride_px < w) return;
+    for (uint32_t y = 0; y < h; ++y) {
+        const uint32_t *srow = src + (size_t)y * w;
+        uint32_t *drow = dst + (size_t)(h - 1u - y) * stride_px;
+        for (uint32_t x = 0; x < w; ++x) {
+            drow[w - 1u - x] = srow[x];
+        }
+    }
+}
+
+static inline void dial_disc_map_touch_180(float raw_x, float raw_y, float *out_x, float *out_y) {
+    float cx = (float)(DIAL_SCREEN_WIDTH - 1) - raw_x;
+    float cy = (float)(DIAL_SCREEN_HEIGHT - 1) - raw_y;
+    if (cx < 0.0f) cx = 0.0f;
+    if (cx > (float)(DIAL_SCREEN_WIDTH - 1)) cx = (float)(DIAL_SCREEN_WIDTH - 1);
+    if (cy < 0.0f) cy = 0.0f;
+    if (cy > (float)(DIAL_SCREEN_HEIGHT - 1)) cy = (float)(DIAL_SCREEN_HEIGHT - 1);
+    if (out_x) *out_x = cx;
+    if (out_y) *out_y = cy;
+}
+
 #endif /* DIAL_HAL_H */

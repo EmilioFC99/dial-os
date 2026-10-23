@@ -1,4 +1,5 @@
 #include "dial_hal.h"
+#include "dial_ipc.h"
 #include "dial_assets.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -431,6 +432,11 @@ bool dial_hal_poll_events(dial_touch_event_t *out_touch,
 void dial_hal_haptic_tick(uint16_t duration_ms) {
     g_haptic_count++;
     g_last_haptic_ms = duration_ms;
+    if (!g_headless) {
+        printf("[Snowsky DISC LRA] haptic pulse %u ms (total=%u)\n",
+               (unsigned)duration_ms, (unsigned)g_haptic_count);
+        fflush(stdout);
+    }
 }
 
 uint32_t dial_hal_get_haptic_count(void) {
@@ -464,6 +470,24 @@ bool dial_hal_send_ipc(const char *opcode, const char *payload) {
     slot->timestamp_ms = dial_hal_ticks_ms();
     g_ipc_head = (g_ipc_head + 1) % DIAL_IPC_RING_CAP;
     g_ipc_count++;
+
+    char wire[96];
+    dial_ipc_format_frame(wire, sizeof(wire), opcode, payload ? payload : "");
+
+    if (!g_headless) {
+        printf("[Snowsky DISC IPC -> /player] opcode=%s payload=\"%s\" wire=\"%s\"\n",
+               opcode, payload ? payload : "", wire);
+        fflush(stdout);
+    }
+
+    const char *vq = getenv("DIAL_VIRTUAL_MQ_LOG");
+    if (vq && vq[0]) {
+        FILE *fp = fopen(vq, "a");
+        if (fp) {
+            fprintf(fp, "%s\n", wire);
+            fclose(fp);
+        }
+    }
     return true;
 }
 

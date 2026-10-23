@@ -26,9 +26,9 @@ COPY tools/ tools/
 COPY tests/ tests/
 COPY Makefile Makefile
 
-# 1. Cross-compile FiiO Snowsky DISC target binary (Ingenic X2000 MIPS32r2 LE)
+# 1. Cross-compile static FiiO Snowsky DISC target binary (Ingenic X2000 MIPS32r2 LE, Patch #5)
 RUN mkdir -p build && \
-    mipsel-linux-gnu-gcc -std=c11 -O2 -mips32r2 -EL \
+    mipsel-linux-gnu-gcc -std=c11 -O2 -mips32r2 -EL -static -ffp-contract=off \
       -Wall -Wextra -Werror -DDIAL_TARGET_DISC -Iinclude \
       src/hal/hal_disc.c \
       src/hal/hal_media.c \
@@ -47,6 +47,7 @@ RUN mkdir -p build && \
       src/main.c \
       -o build/dialos-disc-mipsel -lm -lrt && \
     mipsel-linux-gnu-strip build/dialos-disc-mipsel && \
+    cp build/dialos-disc-mipsel build/mq_ui && \
     file build/dialos-disc-mipsel
 
 # 2. Build host `.fw` packager & generate verified Snowsky DISC `.fw` image

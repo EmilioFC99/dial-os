@@ -204,6 +204,10 @@ void dial_render_set_01(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
 /* ── 9. SET-02: Audio Settings (High Gain in Cloudberry) ── */
 void dial_render_set_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     const dial_app_t *app = dial_app_get_state();
+    size_t focus = (size_t)(app->audio_focus_idx >= 0 && app->audio_focus_idx < 5 ? app->audio_focus_idx : 1);
+    static const char *const kEqNames[4] = { "Acoustic", "Vocal", "Flat", "Custom" };
+    const char *eq_label = kEqNames[(app->eq_preset_idx >= 0 && app->eq_preset_idx < 4) ? app->eq_preset_idx : 0];
+
     dial_draw_clear(fb, pal->bg);
     dial_draw_header(fb, pal, "Audio", "", 42);
 
@@ -212,12 +216,12 @@ void dial_render_set_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
         { .icon_name = "gain",   .title = "Output gain",   .sub = "+6 dB analogue relay",
           .value_text = app->high_gain ? "High" : "Low",   .value_is_chip = true,
           .chip_color = app->high_gain ? pal->cloudberry : 0 },
-        { .icon_name = "eq",     .title = "Parametric EQ", .value_text = "Acoustic", .value_is_chip = true, .chip_color = pal->moss },
-        { .icon_name = "rings",  .title = "Gapless",       .has_toggle = true, .toggle_on = true },
+        { .icon_name = "eq",     .title = "Parametric EQ", .value_text = eq_label, .value_is_chip = true, .chip_color = pal->moss },
+        { .icon_name = "rings",  .title = "Gapless",       .has_toggle = true, .toggle_on = app->gapless_on },
         { .icon_name = "volume", .title = "Volume limit",  .value_text = "85" }
     };
 
-    dial_draw_rim_list(fb, pal, rows, 5, 1, 64, tick_ms);
+    dial_draw_rim_list(fb, pal, rows, 5, focus, 64, tick_ms);
     dial_draw_scroll_rim(fb, pal, 0.05f, 0.35f);
     dial_draw_circle_mask(fb);
 }
@@ -226,6 +230,7 @@ void dial_render_set_02(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
 void dial_render_set_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     const dial_app_t *app = dial_app_get_state();
     int sel = (app->dac_filter_idx >= 0 && app->dac_filter_idx < 5) ? app->dac_filter_idx : 0;
+    size_t focus = (sel == 0) ? 1u : (size_t)sel;
 
     dial_draw_clear(fb, pal->bg);
     dial_draw_header(fb, pal, "DAC filter · CS43131", "", 42);
@@ -238,7 +243,7 @@ void dial_render_set_03(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
         { .icon_name = "filter", .title = "NOS",                     .has_check = (sel == 4) }
     };
 
-    dial_draw_rim_list(fb, pal, rows, 5, 1, 64, tick_ms);
+    dial_draw_rim_list(fb, pal, rows, 5, focus, 64, tick_ms);
     dial_draw_scroll_rim(fb, pal, 0.10f, 0.30f);
     dial_draw_circle_mask(fb);
 }
@@ -248,18 +253,21 @@ void dial_render_set_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
     (void)tick_ms;
     const dial_app_t *app = dial_app_get_state();
     int focus_band = (app->eq_focus_band >= 0 && app->eq_focus_band < 10) ? app->eq_focus_band : 2;
+    int preset_idx = (app->eq_preset_idx >= 0 && app->eq_preset_idx < 4) ? app->eq_preset_idx : 0;
 
     dial_draw_clear(fb, pal->bg);
     dial_draw_header(fb, pal, "Parametric EQ", "", 42);
 
     /* Segmented preset bar at y = 62 */
+    static const float kSegX[4] = { 70.0f, 130.0f, 178.0f, 226.0f };
+    static const float kSegW[4] = { 62.0f,  48.0f,  48.0f,  62.0f };
     dial_draw_round_rect(fb, 68.0f, 60.0f, 224.0f, 26.0f, 13.0f, pal->surface_1, 255, 1.0f, pal->line, 255);
-    dial_draw_round_rect(fb, 70.0f, 62.0f, 62.0f,  22.0f, 11.0f,
+    dial_draw_round_rect(fb, kSegX[preset_idx], 62.0f, kSegW[preset_idx], 22.0f, 11.0f,
                          dial_color_lerp(pal->surface_2, pal->moss, 46), 255, 1.0f, pal->moss, 180);
-    dial_draw_text(fb, "Acoustic", 101, 67, 10, pal->moss,   255, true);
-    dial_draw_text(fb, "Vocal",    154, 67, 10, pal->text_2, 255, true);
-    dial_draw_text(fb, "Flat",     202, 67, 10, pal->text_2, 255, true);
-    dial_draw_text(fb, "Custom",   256, 67, 10, pal->text_2, 255, true);
+    dial_draw_text(fb, "Acoustic", 101, 67, 10, (preset_idx == 0) ? pal->moss : pal->text_2, 255, true);
+    dial_draw_text(fb, "Vocal",    154, 67, 10, (preset_idx == 1) ? pal->moss : pal->text_2, 255, true);
+    dial_draw_text(fb, "Flat",     202, 67, 10, (preset_idx == 2) ? pal->moss : pal->text_2, 255, true);
+    dial_draw_text(fb, "Custom",   256, 67, 10, (preset_idx == 3) ? pal->moss : pal->text_2, 255, true);
 
     /* Response curve card (x=52, y=102, w=256, h=76, r=16) */
     dial_draw_round_rect(fb, 52.0f, 102.0f, 256.0f, 76.0f, 16.0f, pal->surface_1, 255, 1.0f, pal->line, 255);
@@ -267,13 +275,15 @@ void dial_render_set_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
     dial_draw_text(fb, "+6", 60, 108, 10, pal->text_3, 255, false);
     dial_draw_text(fb, "–6", 60, 162, 10, pal->text_3, 255, false);
 
-    static const char  *kBandLabels[10] = { "31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k" };
-    static const float  kBandNorm[10]   = { 0.52f, 0.40f, 0.32f, 0.55f, 0.62f, 0.58f, 0.44f, 0.38f, 0.46f, 0.54f };
+    static const char *kBandLabels[10] = { "31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k" };
+    static const char *kBandFreqs[10]  = { "31 Hz", "62 Hz", "125 Hz", "250 Hz", "500 Hz", "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz" };
+    static const float kDefaultNorm[10]= { 0.52f, 0.40f, 0.32f, 0.55f, 0.62f, 0.58f, 0.44f, 0.38f, 0.46f, 0.54f };
 
-    float pts_x[10], pts_y[10];
+    float pts_x[10], pts_y[10], norms[10];
     for (int i = 0; i < 10; ++i) {
+        norms[i] = (app->eq_band_norm[i] > 0.01f) ? app->eq_band_norm[i] : kDefaultNorm[i];
         pts_x[i] = 64.0f + (float)i * 25.8f;
-        pts_y[i] = 104.0f + kBandNorm[i] * 70.0f;
+        pts_y[i] = 104.0f + norms[i] * 70.0f;
     }
 
     /* Soft 12% Moss fill under EQ response curve */
@@ -297,7 +307,7 @@ void dial_render_set_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
     /* 10 vertical band sliders (y = 196..260) */
     for (int i = 0; i < 10; ++i) {
         float x = pts_x[i];
-        float y = 196.0f + kBandNorm[i] * 64.0f;
+        float y = 196.0f + norms[i] * 64.0f;
         bool on = (i == focus_band);
         dial_draw_line_aa(fb, x, 196.0f, x, 260.0f, 3.0f, pal->surface_3, 255);
         if (on) {
@@ -308,7 +318,11 @@ void dial_render_set_04(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
         dial_draw_text(fb, kBandLabels[i], (int)x, 268, 10, on ? pal->moss : pal->text_3, 255, true);
     }
 
-    dial_draw_pill(fb, pal, DIAL_CENTER_X, 294, NULL, "125 Hz · +2.5 dB · Q 1.41", false);
+    float db_val = (0.5f - norms[focus_band]) * 14.0f;
+    char pill_buf[48];
+    snprintf(pill_buf, sizeof(pill_buf), "%s · %s%.1f dB · Q 1.41",
+             kBandFreqs[focus_band], (db_val >= 0.0f) ? "+" : "", db_val);
+    dial_draw_pill(fb, pal, DIAL_CENTER_X, 294, NULL, pill_buf, false);
     dial_draw_circle_mask(fb);
 }
 
@@ -378,18 +392,20 @@ void dial_render_set_05(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
 /* ── 13. SET-06: Wi-Fi Settings ── */
 void dial_render_set_06(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     const dial_app_t *app = dial_app_get_state();
+    size_t focus = (size_t)(app->wifi_focus_idx >= 0 && app->wifi_focus_idx < 5 ? app->wifi_focus_idx : 1);
+
     dial_draw_clear(fb, pal->bg);
     dial_draw_header(fb, pal, "Wi-Fi", "", 42);
 
     const dial_rim_row_t rows[5] = {
         { .icon_name = "wifi", .title = "Wi-Fi",        .has_toggle = true, .toggle_on = app->wifi_on },
-        { .icon_name = "wifi", .title = "Studio 5G",    .sub = "Connected · strong", .has_check = true },
+        { .icon_name = "wifi", .title = "Studio 5G",    .sub = app->wifi_on ? "Connected · strong" : "Saved network", .has_check = app->wifi_on },
         { .icon_name = "lock", .title = "Fjällstuga",   .value_text = "Fair", .value_is_chip = true },
         { .icon_name = "lock", .title = "Kontor-Guest" },
         { .icon_name = "plus", .title = "Other network" }
     };
 
-    dial_draw_rim_list(fb, pal, rows, 5, 1, 64, tick_ms);
+    dial_draw_rim_list(fb, pal, rows, 5, focus, 64, tick_ms);
     dial_draw_scroll_rim(fb, pal, 0.00f, 0.40f);
     dial_draw_circle_mask(fb);
 }
@@ -397,29 +413,33 @@ void dial_render_set_06(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_
 /* ── 14. SET-07: Fast-Cache Bluetooth & Codec Ladder (Locked Rule #8) ── */
 void dial_render_set_07(dial_fb_t *fb, const dial_palette_t *pal, uint32_t tick_ms) {
     const dial_app_t *app = dial_app_get_state();
+    size_t focus = (size_t)(app->bt_focus_idx >= 0 && app->bt_focus_idx < 5 ? app->bt_focus_idx : 1);
+
     dial_draw_clear(fb, pal->bg);
     dial_draw_header(fb, pal, "Bluetooth", "", 42);
 
     const dial_rim_row_t rows[5] = {
         { .icon_name = "bluetooth",  .title = "Bluetooth",     .has_toggle = true, .toggle_on = app->bt_on },
-        { .icon_name = "headphones", .title = "WH-1000XM5",    .has_check  = true },
+        { .icon_name = "headphones", .title = "WH-1000XM5",    .has_check  = app->bt_on },
         { .icon_name = "headphones", .title = "Sennheiser M4", .value_text = "aptX · Vol 72", .value_is_chip = true },
         { .icon_name = "headphones", .title = "AirPods Pro",   .value_text = "AAC · Vol 66",  .value_is_chip = true },
         { .icon_name = "plus",       .title = "Scan new device" }
     };
 
-    dial_draw_rim_list(fb, pal, rows, 5, 1, 64, tick_ms);
+    dial_draw_rim_list(fb, pal, rows, 5, focus, 64, tick_ms);
 
-    /* Render the 3 inline Fast-Cache chips on focused row 1 (WH-1000XM5):
+    /* Render the 3 inline Fast-Cache chips on row 1 (WH-1000XM5) when focused:
      * [LDAC 990 (moss)] [Vol 78 (neutral)] [Default (fjord)] */
-    int cx = 86;
-    int cy = 140;
-    int w_ldac = 0, w_vol = 0;
-    dial_draw_chip(fb, pal, cx, cy, "LDAC 990", pal->moss, &w_ldac);
-    cx += w_ldac + 4;
-    dial_draw_chip(fb, pal, cx, cy, "Vol 78",   0,         &w_vol);
-    cx += w_vol + 4;
-    dial_draw_chip(fb, pal, cx, cy, "Default",  pal->fjord, NULL);
+    if (focus == 1) {
+        int cx = 86;
+        int cy = 140;
+        int w_ldac = 0, w_vol = 0;
+        dial_draw_chip(fb, pal, cx, cy, "LDAC 990", pal->moss, &w_ldac);
+        cx += w_ldac + 4;
+        dial_draw_chip(fb, pal, cx, cy, "Vol 78",   0,         &w_vol);
+        cx += w_vol + 4;
+        dial_draw_chip(fb, pal, cx, cy, "Default",  pal->fjord, NULL);
+    }
 
     dial_draw_circle_mask(fb);
 }

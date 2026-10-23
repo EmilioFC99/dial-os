@@ -80,7 +80,37 @@ int main(void) {
     /* First 8 messages (0..7) were overwritten by wrap-around; oldest is now "8" */
     assert(strcmp(msg.payload, "8") == 0);
 
-    /* 5. Verify non-blocking event poll and 24.0 MB RAM ceiling */
+    /* 5. Verify Real-Hardware Patch #1: 180-degree rotated 32 bpp XRGB8888 ingenicfb blit */
+    static uint32_t hw_xrgb[DIAL_SCREEN_WIDTH * DIAL_SCREEN_HEIGHT];
+    fb->pixels[0] = 0xFF112233u; /* Top-left logical pixel */
+    fb->pixels[DIAL_SCREEN_WIDTH * DIAL_SCREEN_HEIGHT - 1] = 0xFFAABBCCu; /* Bottom-right logical pixel */
+    dial_disc_blit_rotated_xrgb8888(hw_xrgb, DIAL_SCREEN_WIDTH, fb->pixels, DIAL_SCREEN_WIDTH, DIAL_SCREEN_HEIGHT);
+    assert(hw_xrgb[DIAL_SCREEN_WIDTH * DIAL_SCREEN_HEIGHT - 1] == 0xFF112233u);
+    assert(hw_xrgb[0] == 0xFFAABBCCu);
+
+    /* 6. Verify Real-Hardware Patch #2: event0/event1 node mapping & 180-deg cst816t touch inversion */
+    assert(strcmp(DIAL_DEV_KEYS,  "/dev/input/event0") == 0);
+    assert(strcmp(DIAL_DEV_TOUCH, "/dev/input/event1") == 0);
+    float tx = 0.0f, ty = 0.0f;
+    dial_disc_map_touch_180(10, 25, &tx, &ty);
+    assert(tx == 349.0f && ty == 334.0f);
+    dial_disc_map_touch_180(359, 359, &tx, &ty);
+    assert(tx == 0.0f && ty == 0.0f);
+
+    /* 7. Verify Real-Hardware Patch #4: FiiO /player POSIX mqueue wire-frame encoding */
+    char wire[64];
+    assert(dial_ipc_format_frame(wire, sizeof(wire), DIAL_CMD_PLAY_PAUSE, "pause") == 12);
+    assert(strcmp(wire, "0201000C0000") == 0);
+    assert(dial_ipc_format_frame(wire, sizeof(wire), DIAL_CMD_NEXT_TRACK, "next") == 12);
+    assert(strcmp(wire, "0647000C0000") == 0);
+    assert(dial_ipc_format_frame(wire, sizeof(wire), DIAL_CMD_PREV_TRACK, "prev") == 12);
+    assert(strcmp(wire, "0649000C0000") == 0);
+    assert(dial_ipc_format_frame(wire, sizeof(wire), DIAL_CMD_SEEK, "45000") == 16);
+    assert(strcmp(wire, "010300100000AFC8") == 0);
+    assert(dial_ipc_format_frame(wire, sizeof(wire), DIAL_CMD_SET_VOLUME, "100") == 12);
+    assert(strcmp(wire, "0715000C0078") == 0);
+
+    /* 8. Verify non-blocking event poll and 24.0 MB RAM ceiling */
     dial_touch_event_t touch;
     dial_key_event_t   key;
     bool has_t = true, has_k = true;
@@ -91,7 +121,7 @@ int main(void) {
     assert(ram_bytes > 0 && ram_bytes <= DIAL_MAX_RAM_BYTES);
 
     dial_hal_shutdown();
-    printf("[PASS] test_hal_disc: Snowsky DISC HAL, 38-screen RGB565 pipeline, IPC ring & RAM (%.2f KB) verified.\n",
+    printf("[PASS] test_hal_disc: Snowsky DISC HAL, 180-deg XRGB8888 blit, cst816t touch, mq_player wire frames & RAM (%.2f KB) verified.\n",
            (double)ram_bytes / 1024.0);
     return 0;
 }
