@@ -363,13 +363,16 @@ bool dial_hal_poll_events(dial_touch_event_t *out_touch,
         id run_mode     = MSG_ID_1(objc_getClass("NSString"), "stringWithUTF8String:",
                                    const char *, "kCFRunLoopDefaultMode");
 
-        id ev = ((id (*)(id, SEL, unsigned long, id, id, signed char))objc_msgSend)(
-            g_ns_app,
-            sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:"),
-            ~0UL, distant_past, run_mode, (signed char)1
-        );
+        while (true) {
+            id ev = ((id (*)(id, SEL, unsigned long, id, id, signed char))objc_msgSend)(
+                g_ns_app,
+                sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:"),
+                ~0UL, distant_past, run_mode, (signed char)1
+            );
+            if (!ev) {
+                break;
+            }
 
-        if (ev) {
             unsigned long ev_type = MSG_ULONG_0(ev, "type");
             uint32_t now_ms = dial_hal_ticks_ms();
 
@@ -378,8 +381,15 @@ bool dial_hal_poll_events(dial_touch_event_t *out_touch,
                 ns_point_t pt = MSG_POINT_0(ev, "locationInWindow");
                 float mx = (float)pt.x;
                 float my = (float)DIAL_SCREEN_HEIGHT - (float)pt.y;
-                if (mx >= 0.0f && mx <= (float)DIAL_SCREEN_WIDTH &&
-                    my >= 0.0f && my <= (float)DIAL_SCREEN_HEIGHT) {
+
+                bool in_bounds = (mx >= 0.0f && mx <= (float)DIAL_SCREEN_WIDTH &&
+                                  my >= 0.0f && my <= (float)DIAL_SCREEN_HEIGHT);
+                if ((ev_type == 1UL && in_bounds) || (ev_type != 1UL && g_mouse_down)) {
+                    if (mx < 0.0f) mx = 0.0f;
+                    if (mx > (float)(DIAL_SCREEN_WIDTH - 1)) mx = (float)(DIAL_SCREEN_WIDTH - 1);
+                    if (my < 0.0f) my = 0.0f;
+                    if (my > (float)(DIAL_SCREEN_HEIGHT - 1)) my = (float)(DIAL_SCREEN_HEIGHT - 1);
+
                     g_mouse_down = (ev_type != 2UL);
                     if (out_touch && has_touch) {
                         out_touch->x            = mx;
@@ -388,6 +398,9 @@ bool dial_hal_poll_events(dial_touch_event_t *out_touch,
                         out_touch->timestamp_ms = now_ms;
                         *has_touch              = true;
                     }
+                    MSG_VOID_1(g_ns_app, "sendEvent:", id, ev);
+                    MSG_VOID_0(g_ns_app, "updateWindows");
+                    return true;
                 }
             }
             /* NSEventTypeKeyDown = 10, KeyUp = 11 */
